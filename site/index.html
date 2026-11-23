@@ -1,0 +1,2130 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="build" content="3dd12c3bf545cb7c">
+<title>Valuation Modeler - documentation and verification</title><style>
+:root{--bg:#fff;--fg:#1d2433;--mut:#5b6475;--line:#e3e6ec;--side:#f6f7f9;--acc:#1f497d;--code:#f2f4f7;
+--pass:#1e7b34;--warn:#9a6400;--fail:#b3261e}
+@media (prefers-color-scheme:dark){:root{--bg:#14171c;--fg:#e6e9ef;--mut:#9aa3b2;--line:#2a2f38;--side:#1a1e24;
+--acc:#8fb4e8;--code:#20252d;--pass:#6fcf87;--warn:#e7b84a;--fail:#f08a80}}
+*{box-sizing:border-box}body{margin:0;font:15px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+background:var(--bg);color:var(--fg)}
+nav{position:fixed;top:0;left:0;bottom:0;width:250px;overflow:auto;background:var(--side);border-right:1px solid var(--line);
+padding:20px 14px}nav h1{font-size:17px;margin:0 0 4px}nav .sub{color:var(--mut);font-size:12px;margin-bottom:14px}
+nav input{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);
+margin-bottom:12px}nav a{display:block;padding:6px 8px;border-radius:6px;color:var(--fg);text-decoration:none;font-size:14px}
+nav a:hover,nav a.on{background:var(--line)}main{margin-left:250px;padding:28px 44px;max-width:1180px}
+section{display:none}section.on{display:block}h1,h2,h3{line-height:1.25}h2{border-bottom:1px solid var(--line);
+padding-bottom:6px;margin-top:34px}a{color:var(--acc)}code{background:var(--code);padding:1px 5px;border-radius:4px;
+font-size:.9em}pre{background:var(--code);padding:12px;border-radius:8px;overflow:auto;font-size:12.5px}pre code{padding:0}
+table{border-collapse:collapse;margin:12px 0;display:block;overflow:auto;font-size:13.5px}
+th,td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}th{background:var(--side)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:16px 0}
+.card{border:1px solid var(--line);border-radius:10px;padding:14px}.ct{color:var(--mut);font-size:12px;text-transform:uppercase;
+letter-spacing:.04em}.cv{font-size:26px;font-weight:600;margin:4px 0}.cs{color:var(--mut);font-size:12.5px}
+.meta,.note{color:var(--mut);font-size:13px}.st{font-weight:600}.pass{color:var(--pass)}.warn{color:var(--warn)}
+.fail{color:var(--fail)}details{margin:10px 0}summary{cursor:pointer;font-weight:600}mark{background:#ffe58a;color:#000}
+@media (max-width:860px){nav{position:static;width:auto;border-right:0;border-bottom:1px solid var(--line)}main{margin:0;padding:18px}}
+</style></head>
+<body><nav><h1>Valuation Modeler</h1><div class="sub">DCF · Reverse DCF · IRR - every number traceable</div>
+<input id="q" placeholder="Filter sections…" aria-label="Filter sections"><a href="#overview" data-s="overview">Overview</a><a href="#verification" data-s="verification">Verification report</a><a href="#worked-example" data-s="worked-example">Worked example (DDOG)</a><a href="#formulas" data-s="formulas">Formula registry</a><a href="#assumptions" data-s="assumptions">Assumptions register</a><a href="#methodology" data-s="methodology">Methodology</a><a href="#provenance" data-s="provenance">Data provenance</a><a href="#limitations" data-s="limitations">Limitations</a><a href="#known-issues" data-s="known-issues">Known issues</a><a href="#deployment" data-s="deployment">Deployment</a><a href="#changelog" data-s="changelog">Changelog</a></nav>
+<main><section id="overview"><div class="cards">
+<div class="card"><div class="ct">Tests passed</div><div class="cv">389</div><div class="cs">1 skipped</div></div>
+<div class="card"><div class="ct">Excel parity</div><div class="cv">19175 / 19176</div><div class="cs">values within 0.1% across 136 scenarios</div></div>
+<div class="card"><div class="ct">Disagreements</div><div class="cv">1</div><div class="cs">every one listed and explained</div></div>
+<div class="card"><div class="ct">Reference impl.</div><div class="cv">9e-13</div><div class="cs">largest difference vs independent code</div></div>
+</div>
+<p class="meta">Report generated 2026-11-23 16:16:04 at commit <code>1af987e955</code>. The interactive calculator is the Streamlit app (see Deployment).</p>
+<h3>DDOG reference snapshot - headline results (engine, default inputs)</h3><table><thead><tr><th>Basis</th><th>Fair value</th><th>Price</th><th>Implied growth (Reverse DCF)</th><th>IRR (P/E, 5y)</th><th>WACC</th><th>Live checks</th></tr></thead><tbody>
+<tr><td>Non-GAAP</td><td>$48.36</td><td>$157.37</td><td>33.52%</td><td>13.77%</td><td>13.1%</td><td>PASS: all checks pass</td></tr>
+<tr><td>GAAP</td><td>$11.78</td><td>$157.37</td><td>92.68%</td><td>13.77%</td><td>13.1%</td><td>WARN: 1 warning(s) to review</td></tr>
+</tbody></table>
+<details><summary>Live checks - Non-GAAP</summary><table><thead><tr><th>Status</th><th>Check</th><th>Actual numbers</th></tr></thead><tbody>
+<tr><td class="st pass">PASS</td><td>Required inputs present</td><td>All 18 required inputs have a value.</td></tr>
+<tr><td class="st pass">PASS</td><td>Terminal growth &lt; WACC</td><td>WACC 13.1000% vs terminal growth 2.5000% (gap +10.6000%). Gordon growth needs WACC &gt; g.</td></tr>
+<tr><td class="st pass">PASS</td><td>Equity weight + debt weight = 100%</td><td>We 98.355745% + Wd 1.644255% = 100.0000000000%</td></tr>
+<tr><td class="st pass">PASS</td><td>Sensitivity centre = base fair value</td><td>Centre $48.357505 vs fair value $48.357505 (diff +7.11e-15)</td></tr>
+<tr><td class="st pass">PASS</td><td>Excel NPV() cross-check = Σ PV of UFCF</td><td>NPV(WACC, UFCF1..10)×(1+WACC)^0.0 = $7,887.898M vs Σ PV $7,887.898M</td></tr>
+<tr><td class="st pass">PASS</td><td>Share of value from terminal value</td><td>PV(TV) $5,999.852M ÷ EV $13,887.750M = 43.2%</td></tr>
+<tr><td class="st pass">PASS</td><td>Terminal value is positive</td><td>TV $20,547.859M from Year-11 UFCF $2,178.073M</td></tr>
+<tr><td class="st pass">PASS</td><td>Value path starts at fair value</td><td>Year-0 price on the value path $48.357505 vs fair value $48.357505</td></tr>
+<tr><td class="st pass">PASS</td><td>Reverse DCF: model EV ties to market EV</td><td>Model EV at g=33.518398%: $54,768.959M; market EV (price × shares − net cash): $54,768.959M; difference -1.46e-09 $M</td></tr>
+<tr><td class="st pass">PASS</td><td>Reverse DCF solver residual</td><td>f(g*) = model EV − market EV = -1.448e-09 $M after 40 bisection steps; bracket width 1.8e-14</td></tr>
+<tr><td class="st pass">PASS</td><td>Reverse DCF: single growth rate fits</td><td>Sign changes on the −50%…+150% grid: 1</td></tr>
+<tr><td class="st pass">PASS</td><td>Implied value path starts at market price</td><td>Year-0 implied price $157.369995 vs price $157.369995</td></tr>
+<tr><td class="st pass">PASS</td><td>Year-10 growth within 1pp of terminal growth</td><td>Year-10 growth 2.50% vs terminal 2.50%</td></tr>
+<tr><td class="st pass">PASS</td><td>Units consistency ($M ↔ $K)</td><td>Fair value in $M: $48.357505; recomputed in $K (×1,000 money and shares): $48.357505</td></tr>
+<tr><td class="st pass">PASS</td><td>IRR: NPV of cash flows at the IRR = 0</td><td>Σ CF_t/(1+13.7692%)^t = -2.84e-14 $/share</td></tr>
+</tbody></table></details>
+<details><summary>Live checks - GAAP</summary><table><thead><tr><th>Status</th><th>Check</th><th>Actual numbers</th></tr></thead><tbody>
+<tr><td class="st pass">PASS</td><td>Required inputs present</td><td>All 18 required inputs have a value.</td></tr>
+<tr><td class="st pass">PASS</td><td>Terminal growth &lt; WACC</td><td>WACC 13.1000% vs terminal growth 2.5000% (gap +10.6000%). Gordon growth needs WACC &gt; g.</td></tr>
+<tr><td class="st pass">PASS</td><td>Equity weight + debt weight = 100%</td><td>We 98.355745% + Wd 1.644255% = 100.0000000000%</td></tr>
+<tr><td class="st pass">PASS</td><td>Sensitivity centre = base fair value</td><td>Centre $11.775001 vs fair value $11.775001 (diff +1.78e-15)</td></tr>
+<tr><td class="st pass">PASS</td><td>Excel NPV() cross-check = Σ PV of UFCF</td><td>NPV(WACC, UFCF1..10)×(1+WACC)^0.0 = $229.204M vs Σ PV $229.204M</td></tr>
+<tr><td class="st pass">PASS</td><td>Share of value from terminal value</td><td>PV(TV) $-60.406M ÷ EV $168.798M = -35.8%</td></tr>
+<tr><td class="st warn">WARN</td><td>Terminal value is positive</td><td>TV $-206.875M from Year-11 UFCF $-21.929M - negative: the business never generates free cash at these margins, capex and working-capital ratios; the value rests on Years 1-10 and the balance sheet</td></tr>
+<tr><td class="st pass">PASS</td><td>Value path starts at fair value</td><td>Year-0 price on the value path $11.775001 vs fair value $11.775001</td></tr>
+<tr><td class="st pass">PASS</td><td>Reverse DCF: model EV ties to market EV</td><td>Model EV at g=92.680497%: $54,768.959M; market EV (price × shares − net cash): $54,768.959M; difference -1.30e-09 $M</td></tr>
+<tr><td class="st pass">PASS</td><td>Reverse DCF solver residual</td><td>f(g*) = model EV − market EV = -1.222e-09 $M after 40 bisection steps; bracket width 1.8e-14</td></tr>
+<tr><td class="st pass">PASS</td><td>Reverse DCF: single growth rate fits</td><td>Sign changes on the −50%…+150% grid: 1</td></tr>
+<tr><td class="st pass">PASS</td><td>Implied value path starts at market price</td><td>Year-0 implied price $157.369995 vs price $157.369995</td></tr>
+<tr><td class="st pass">PASS</td><td>Year-10 growth within 1pp of terminal growth</td><td>Year-10 growth 2.50% vs terminal 2.50%</td></tr>
+<tr><td class="st pass">PASS</td><td>Units consistency ($M ↔ $K)</td><td>Fair value in $M: $11.775001; recomputed in $K (×1,000 money and shares): $11.775001</td></tr>
+<tr><td class="st pass">PASS</td><td>IRR: NPV of cash flows at the IRR = 0</td><td>Σ CF_t/(1+13.7692%)^t = -5.68e-14 $/share</td></tr>
+</tbody></table></details>
+<p class="note">Educational, not investment advice. The DDOG figures were transcribed from a live-generated workbook (2026-11-22 21:17), not a raw API response - see Data provenance.</p>
+<hr>
+<h1 id="overview-valuation-modeler">Valuation Modeler</h1>
+<p><strong>DCF, Reverse DCF and IRR you can check line by line.</strong> Enter a ticker, see the inputs pulled from the company's latest
+SEC filings, type your own overrides, and get the same results as the Excel workbooks, with the formula, your numbers,
+the source and a passing test behind every figure.</p>
+<blockquote>
+<p><strong>Educational tool, not investment advice.</strong> It turns assumptions into numbers; it does not tell you whether to buy or sell anything.</p>
+</blockquote>
+<!-- Screenshot placeholders: replace with real captures after the first deployment -->
+<!-- ![Inputs tab](docs/img/inputs.png) -->
+<!-- ![DCF tab with show-your-work panel](docs/img/dcf.png) -->
+<!-- ![Checks tab](docs/img/checks.png) -->
+
+<h2 id="overview-what-you-can-verify-for-every-number">What you can verify for every number</h2>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Where the answer is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>What formula produced it?</td>
+<td>"Show your work" panel under each result; <strong>Logic</strong> tab; <a href="#formulas">docs/formulas.md</a> (all generated from <a href="../formulas.yaml"><code>formulas.yaml</code></a>)</td>
+</tr>
+<tr>
+<td>What is the logic in plain English?</td>
+<td>Same places: each formula has an explanation</td>
+</tr>
+<tr>
+<td>Where did each input come from?</td>
+<td><strong>Inputs</strong> tab source tag: <em>Fetched</em> (provider, XBRL tag / field, fetch time, period end, filing link), <em>Derived</em> (formula), <em>Assumption</em> (rationale), <em>Analyst override</em> (original value kept), <em>Missing</em> (blank, never guessed). Raw provider responses are saved in <code>data_snapshots/</code></td>
+</tr>
+<tr>
+<td>Is the calculation correct?</td>
+<td><strong>Checks</strong> tab (live tie-outs with numbers); <a href="#verification">VERIFICATION_REPORT.md</a>: Excel parity, independent reference implementation, full pytest output</td>
+</tr>
+<tr>
+<td>What did the model assume for me?</td>
+<td><strong>Assumptions</strong> tab / <a href="#assumptions">docs/assumptions.md</a>, with a real sensitivity for each</td>
+</tr>
+</tbody>
+</table>
+<h2 id="overview-how-it-fits-together">How it fits together</h2>
+<pre><code>SEC EDGAR XBRL + Yahoo Finance ──► data_snapshots/*.json (raw, timestamped)
+                                        │
+                     valuation/sec_data.py  (same parser the Excel workbooks use)
+                                        │
+                     valuation/engine.py  (single source of truth) ──► Streamlit app (app.py + modules/)
+                                        │
+        tests/test_reference_agreement.py ◄── reference_impl/simple_valuation.py (independent)
+        tests/test_excel_parity.py        ◄── owner's private Excel builder + LibreOffice (owner-run)
+</code></pre>
+<p>The Excel builder that produces the workbooks is <strong>private and not in this repository</strong>. The engine was verified
+against it value by value (see VERIFICATION_REPORT.md); those parity tests run on the owner's machine and are skipped
+everywhere else. Everything else - engine, reference implementation, edge cases, registry, provenance - is tested in CI.</p>
+<h2 id="overview-use-it">Use it</h2>
+<p>Open the hosted app (link in the repository description). Choose <strong>Reference snapshot</strong> (offline, DDOG) or <strong>Fetch live</strong>
+in the sidebar and pick <strong>GAAP</strong> or <strong>Non-GAAP</strong>: the basis is shown on every tab.</p>
+<h2 id="overview-verify-it">Verify it</h2>
+<p>CI runs the public test suite on every push. The owner regenerates the full report, including Excel parity, with
+<code>python -m scripts.verify</code> (needs the private builder and LibreOffice).</p>
+<h2 id="overview-data-and-its-limits">Data and its limits</h2>
+<ul>
+<li><strong>Financial statements:</strong> SEC EDGAR XBRL <code>companyfacts</code> (official filings, linked line by line). The spec this project
+  started from suggested yfinance for statements; SEC XBRL is used instead because it is what the workbooks use (so the app
+  and the spreadsheet cannot disagree) and every figure links to the filing it came from.</li>
+<li><strong>Market data:</strong> Yahoo Finance via <code>yfinance</code> (price, beta, 10-year Treasury, consensus revenue growth), cached for
+  15 minutes in the app. <strong>Unofficial and third-party:</strong> it can be delayed, missing or different from the exchange, and no
+  filing can confirm it. Its source tag links to the Yahoo page.</li>
+<li>GAAP figures come straight from the filings; the Non-GAAP basis is a transparent approximation (SBC, acquired-intangible
+  amortization and an "other" line you type from the 8-K), each part switchable.</li>
+<li>More in <a href="#limitations">docs/limitations.md</a> and <a href="#known-issues">docs/known_issues.md</a>.</li>
+</ul>
+<h2 id="overview-repository-map">Repository map</h2>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>What</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>valuation/engine.py</code></td>
+<td>WACC, forecast modes, DCF, sensitivity, value over time, reverse DCF, IRR</td>
+</tr>
+<tr>
+<td><code>valuation/company.py</code></td>
+<td>reported facts and the Data &amp; Sources derivations, with source tags</td>
+</tr>
+<tr>
+<td><code>reference_impl/simple_valuation.py</code></td>
+<td>independent, deliberately simple re-implementation (no shared code)</td>
+</tr>
+<tr>
+<td><code>formulas.yaml</code> / <code>assumptions.yaml</code></td>
+<td>formula registry and assumptions register (drive the Logic / Assumptions pages and the docs)</td>
+</tr>
+<tr>
+<td><code>valuation/checks.py</code></td>
+<td>live integrity checks</td>
+</tr>
+<tr>
+<td><code>valuation/data_sources.py</code></td>
+<td>live fetch → raw snapshot; replay</td>
+</tr>
+<tr>
+<td><code>valuation/sec_data.py</code></td>
+<td>SEC XBRL parser shared with the Excel builder</td>
+</tr>
+<tr>
+<td><code>app.py</code>, <code>modules/</code></td>
+<td>Streamlit UI</td>
+</tr>
+<tr>
+<td><code>tests/</code></td>
+<td>parity, reference agreement, edge cases, registry, provenance, docs freshness, builder kept out of the repo, app smoke</td>
+</tr>
+<tr>
+<td><code>scripts/verify.py</code></td>
+<td>builds VERIFICATION_REPORT.md</td>
+</tr>
+<tr>
+<td><code>scripts/build_site.py</code>, <code>site/index.html</code></td>
+<td>documentation and verification portal (GitHub Pages)</td>
+</tr>
+<tr>
+<td><code>docs/</code></td>
+<td>methodology, formulas, assumptions, worked example, data provenance, limitations, known issues, deployment, changelog</td>
+</tr>
+</tbody>
+</table>
+<h2 id="overview-documentation-portal-index-html">Documentation portal (index.html)</h2>
+<p><code>site/index.html</code> is a single self-contained page that presents everything a reviewer needs: headline DDOG results and
+live checks, the verification report, the worked example, the formula registry, the assumptions register and the rest of
+<code>docs/</code>. GitHub Pages publishes it; CI rebuilds it on every push to <code>main</code>.
+Rebuild locally: <code>python -m scripts.build_site</code>.</p>
+<h2 id="overview-hosting">Hosting</h2>
+<p>GitHub Pages cannot run Python, so it hosts the portal, not the interactive app. Deploy to Streamlit Community Cloud or any
+Docker host. Steps and which features need a server are in <a href="#deployment">docs/deployment.md</a>. No API keys or
+secrets are stored in the repository; the SEC contact goes in Streamlit secrets or an environment variable.</p>
+<h2 id="overview-license">License</h2>
+<p>All rights reserved - see <a href="../LICENSE">LICENSE</a>. The code is published for transparency and review, not for reuse.</p><p class="meta">Source: <a href="../README.md">README.md</a></p></section><section id="verification"><h1 id="verification-verification-report">Verification report</h1>
+<p><em>Generated by <code>python -m scripts.verify</code> on the owner's machine (the Excel parity tests need the private Excel builder and LibreOffice). Do not edit by hand; <code>python -m scripts.verify --check</code> fails if any number drifts. Public CI runs every other test on each push.</em></p>
+<ul>
+<li><strong>Generated:</strong> 2026-11-23 16:16:04 (local time of the machine that ran it)</li>
+<li><strong>Git commit:</strong> <code>1af987e9559aa7e34603ee05d00689ed58085ac5</code></li>
+<li><strong>Versions:</strong> python 3.13.18, numpy 2.5.3, openpyxl 3.1.5, pyyaml 6.0.3, pytest 9.1.1, libreoffice LibreOffice 24.2.7.2 420(Build:2), platform Linux-6.18.44-fc-v726-x86_64-with-glibc2.39, streamlit not installed, yfinance not installed, pandas 3.0.5</li>
+<li><strong>pytest exit code:</strong> 0 (all tests passed)</li>
+</ul>
+<p>Reproduce (owner): <code>pip install -r requirements-dev.txt</code>, LibreOffice, the private builder in <code>VALUATION_BUILDER_DIR</code>, then <code>python -m scripts.verify</code>. Anyone: <code>python -m pytest</code> runs every non-Excel test.</p>
+<h2 id="verification-1-python-engine-vs-excel-workbook-ddog-reference-snapshot">1. Python engine vs Excel workbook - DDOG reference snapshot</h2>
+<p>Workbooks written by the owner's private Excel builder, recalculated by LibreOffice headless, read by defined name. Default inputs (the yellow cells as generated). Tolerance 0.1% relative.</p>
+<h3 id="verification-ddog-non-gaap">DDOG Non-GAAP</h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Python engine</th>
+<th>Excel (LibreOffice)</th>
+<th>Abs. difference</th>
+<th>Rel. difference</th>
+<th>Within 0.1%</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fair value per share ($) (<code>dcf_FV</code>)</td>
+<td>48.35750547</td>
+<td>48.35750547</td>
+<td>2.842170943e-14</td>
+<td>5.88e-16</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Enterprise value ($M) (<code>dcf_EV</code>)</td>
+<td>13,887.74956</td>
+<td>13,887.74956</td>
+<td>4.547473509e-11</td>
+<td>3.27e-15</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Terminal value ($M) (<code>dcf_TV</code>)</td>
+<td>20,547.85907</td>
+<td>20,547.85907</td>
+<td>1.091393642e-11</td>
+<td>5.31e-16</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>PV of terminal value ($M) (<code>dcf_PVTV</code>)</td>
+<td>5,999.851883</td>
+<td>5,999.851883</td>
+<td>9.094947018e-13</td>
+<td>1.52e-16</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Sensitivity centre ($) (<code>dcf_SensCentre</code>)</td>
+<td>48.35750547</td>
+<td>48.35750547</td>
+<td>3.552713679e-14</td>
+<td>7.35e-16</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Active WACC (<code>in_WACC</code>)</td>
+<td>0.131</td>
+<td>0.131</td>
+<td>0</td>
+<td>0.00e+00</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>CAPM WACC (<code>in_WACC_CAPM</code>)</td>
+<td>0.1307755882</td>
+<td>0.1307755882</td>
+<td>4.163336342e-16</td>
+<td>3.18e-15</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Implied growth (Reverse DCF) (<code>rd_G</code>)</td>
+<td>0.3351839785</td>
+<td>0.3351839785</td>
+<td>4.440892099e-16</td>
+<td>1.32e-15</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Reverse DCF model EV ($M) (<code>rd_EV</code>)</td>
+<td>54,768.95935</td>
+<td>54,768.95935</td>
+<td>7.275957614e-12</td>
+<td>1.33e-16</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>IRR (P/E, 5y) (<code>irr_IRR</code>)</td>
+<td>0.1376922098</td>
+<td>0.1376922098</td>
+<td>4.718447855e-16</td>
+<td>3.43e-15</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>IRR exit price ($) (<code>irr_ExitPx</code>)</td>
+<td>299.9479188</td>
+<td>299.9479188</td>
+<td>3.410605132e-13</td>
+<td>1.14e-15</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>IRR sensitivity centre (<code>irr_SensCentre</code>)</td>
+<td>0.1376922098</td>
+<td>0.1376922098</td>
+<td>3.885780586e-16</td>
+<td>2.82e-15</td>
+<td>yes</td>
+</tr>
+</tbody>
+</table>
+<h3 id="verification-ddog-gaap">DDOG GAAP</h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Python engine</th>
+<th>Excel (LibreOffice)</th>
+<th>Abs. difference</th>
+<th>Rel. difference</th>
+<th>Within 0.1%</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fair value per share ($) (<code>dcf_FV</code>)</td>
+<td>11.77500072</td>
+<td>11.77500072</td>
+<td>1.598721155e-14</td>
+<td>1.36e-15</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Enterprise value ($M) (<code>dcf_EV</code>)</td>
+<td>168.7981192</td>
+<td>168.7981192</td>
+<td>3.183231456e-12</td>
+<td>1.89e-14</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Terminal value ($M) (<code>dcf_TV</code>)</td>
+<td>-206.8747941</td>
+<td>-206.8747941</td>
+<td>2.074784788e-12</td>
+<td>1.00e-14</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>PV of terminal value ($M) (<code>dcf_PVTV</code>)</td>
+<td>-60.40620185</td>
+<td>-60.40620185</td>
+<td>6.394884622e-13</td>
+<td>1.06e-14</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Sensitivity centre ($) (<code>dcf_SensCentre</code>)</td>
+<td>11.77500072</td>
+<td>11.77500072</td>
+<td>1.421085472e-14</td>
+<td>1.21e-15</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Active WACC (<code>in_WACC</code>)</td>
+<td>0.131</td>
+<td>0.131</td>
+<td>0</td>
+<td>0.00e+00</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>CAPM WACC (<code>in_WACC_CAPM</code>)</td>
+<td>0.1307755882</td>
+<td>0.1307755882</td>
+<td>4.163336342e-16</td>
+<td>3.18e-15</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Implied growth (Reverse DCF) (<code>rd_G</code>)</td>
+<td>0.9268049676</td>
+<td>0.9268049676</td>
+<td>3.330669074e-16</td>
+<td>3.59e-16</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Reverse DCF model EV ($M) (<code>rd_EV</code>)</td>
+<td>54,768.95935</td>
+<td>54,768.95935</td>
+<td>4.511093721e-10</td>
+<td>8.24e-15</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>IRR (P/E, 5y) (<code>irr_IRR</code>)</td>
+<td>0.1376922098</td>
+<td>0.1376922098</td>
+<td>4.996003611e-16</td>
+<td>3.63e-15</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>IRR exit price ($) (<code>irr_ExitPx</code>)</td>
+<td>299.9479188</td>
+<td>299.9479188</td>
+<td>2.842170943e-13</td>
+<td>9.48e-16</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>IRR sensitivity centre (<code>irr_SensCentre</code>)</td>
+<td>0.1376922098</td>
+<td>0.1376922098</td>
+<td>3.885780586e-16</td>
+<td>2.82e-15</td>
+<td>yes</td>
+</tr>
+</tbody>
+</table>
+<h2 id="verification-2-parity-across-every-scenario">2. Parity across every scenario</h2>
+<ul>
+<li>Scenarios (dataset × basis × variant): <strong>136</strong> - DDOG Non-GAAP and GAAP (real, transcribed data), SMPL profitable and SMPL loss-making (synthetic); every toggle (terminal method and metric, WACC mode, working-capital method, mid-year, tax on losses, Bear / Bull scenario, manual overrides, margin target, constant-margin reverse DCF, cash retention, analyst overrides of price / WACC / growth / ratios / base data, Data &amp; Sources switches, terminal growth above WACC) and all 22 IRR multiple × timing combinations.</li>
+<li>Values compared: <strong>19176</strong>; within tolerance: <strong>19175</strong>; disagreements: <strong>1</strong>.</li>
+<li>Largest relative difference among agreeing numeric values: 9.91e-13.</li>
+</ul>
+<h3 id="verification-every-disagreement">Every disagreement</h3>
+<table>
+<thead>
+<tr>
+<th>Dataset</th>
+<th>Basis</th>
+<th>Variant</th>
+<th>Metric</th>
+<th>Python</th>
+<th>Excel</th>
+<th>Listed in KNOWN_DIFFERENCES</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DDOG</td>
+<td>GAAP</td>
+<td>irr_exit_override</td>
+<td><code>irr_IRR</code></td>
+<td>-0.4534858241</td>
+<td>n/a</td>
+<td>yes</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><code>('DDOG', 'GAAP', 'irr_exit_override', 'irr_IRR')</code>: LibreOffice IRR() returns an error (no convergence from its 10% starting guess) for a -45% IRR. The cash flows are -price, 0, 0, exit price (no dividends), whose exact IRR is (exit/price)^(1/3) - 1; the engine matches that closed form and the workbook's own price-only CAGR cell (irr_PxCAGR). Not tested in Microsoft Excel.</li>
+</ul>
+<h2 id="verification-3-engine-vs-independent-reference-implementation">3. Engine vs independent reference implementation</h2>
+<p><code>reference_impl/simple_valuation.py</code> (plain loops, no shared code, full-schedule reverse DCF, bisection IRR) on 200 random cases (random dataset, basis, toggles and overrides; seed 7):</p>
+<table>
+<thead>
+<tr>
+<th>Quantity</th>
+<th>Comparisons</th>
+<th>Largest absolute difference</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fair value per share ($)</td>
+<td>200 (+0 where both say undefined)</td>
+<td>4.55e-13</td>
+</tr>
+<tr>
+<td>Sensitivity cells ($)</td>
+<td>9800</td>
+<td>9.09e-13</td>
+</tr>
+<tr>
+<td>Reverse DCF implied growth</td>
+<td>168 (+32 where both say no solution)</td>
+<td>1.27e-14</td>
+</tr>
+<tr>
+<td>IRR (P/E, EV/EBITDA, P/S, EV/FCF)</td>
+<td>721</td>
+<td>5.97e-16</td>
+</tr>
+</tbody>
+</table>
+<h2 id="verification-4-what-this-report-does-not-cover">4. What this report does not cover</h2>
+<ul>
+<li>Live data fetching (SEC EDGAR, Yahoo Finance) - tests replay committed snapshots; the DDOG snapshot is transcribed from a live-generated workbook, not a raw API response.</li>
+<li>Microsoft Excel itself - parity is measured with LibreOffice.</li>
+<li>The Streamlit UI rendering in a browser - see section 5 for which app test ran.</li>
+</ul>
+<h2 id="verification-5-raw-pytest-output">5. Raw pytest output</h2>
+<pre><code>..........s............................................................. [ 18%]
+........................................................................ [ 36%]
+........................................................................ [ 55%]
+........................................................................ [ 73%]
+........................................................................ [ 92%]
+..............................                                           [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_app_smoke.py:102: streamlit not installed in this environment
+389 passed, 1 skipped in 109.54s (0:01:49)
+</code></pre><p class="meta">Source: <a href="../VERIFICATION_REPORT.md">VERIFICATION_REPORT.md</a></p></section><section id="worked-example"><h1 id="worked-example-worked-example-ddog-non-gaap-basis-every-number">Worked example: DDOG, Non-GAAP basis, every number</h1>
+<p><em>Generated by <code>python -m scripts.gen_docs</code> from the engine; the numbers cannot drift from the code. <code>tests/test_excel_parity.py</code> confirms the same numbers come out of the Excel workbook (LibreOffice recalculation) to 0.1%; see VERIFICATION_REPORT.md.</em></p>
+<p><strong>Data:</strong> the DDOG reference snapshot <code>data_snapshots/reference/DDOG_2026-11-22T2117_transcribed.json</code>. Its figures were transcribed from the Data &amp; Sources tab of a workbook the project owner generated from live SEC XBRL and Yahoo Finance data on 2026-11-22 21:17 (see <code>scripts/reconstruct_ddog_snapshot.py</code>). It is not a raw API response.</p>
+<p>Money in $ millions, shares in millions. Intermediate values are shown rounded; the engine carries full precision. Section 9 re-does the final steps using only the rounded numbers printed here, so you can see how close a calculator gets.</p>
+<h2 id="worked-example-1-reported-figures-sourced-facts">1. Reported figures (sourced facts)</h2>
+<table>
+<thead>
+<tr>
+<th>Line</th>
+<th>XBRL tag</th>
+<th>Latest FY</th>
+<th>Current YTD</th>
+<th>Prior-year YTD</th>
+<th>TTM = FY + YTD − prior YTD</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Revenue</td>
+<td><code>RevenueFromContractWithCustomerExcludingAssessedTax</code></td>
+<td>3,427.158</td>
+<td>3,324.970</td>
+<td>2,473.964</td>
+<td><strong>4,278.164</strong></td>
+</tr>
+<tr>
+<td>Revenue - prior-year TTM</td>
+<td><code>RevenueFromContractWithCustomerExcludingAssessedTax</code></td>
+<td>2,684.275</td>
+<td>2,473.964</td>
+<td>1,946.548</td>
+<td><strong>3,211.691</strong></td>
+</tr>
+<tr>
+<td>Operating income (loss) - GAAP</td>
+<td><code>OperatingIncomeLoss</code></td>
+<td>-44.373</td>
+<td>87.488</td>
+<td>-53.729</td>
+<td><strong>96.844</strong></td>
+</tr>
+<tr>
+<td>Net income (loss) - GAAP</td>
+<td><code>NetIncomeLoss</code></td>
+<td>107.741</td>
+<td>215.448</td>
+<td>61.174</td>
+<td><strong>262.015</strong></td>
+</tr>
+<tr>
+<td>Depreciation &amp; amortization (cash flow statement)</td>
+<td><code>DepreciationDepletionAndAmortization</code></td>
+<td>49.200</td>
+<td>52.500</td>
+<td>34.600</td>
+<td><strong>67.100</strong></td>
+</tr>
+<tr>
+<td>Amortization of acquired intangibles</td>
+<td><code>AmortizationOfIntangibleAssets</code></td>
+<td>6.500</td>
+<td>5.700</td>
+<td>4.500</td>
+<td><strong>7.700</strong></td>
+</tr>
+<tr>
+<td>Stock-based compensation</td>
+<td><code>ShareBasedCompensation</code></td>
+<td>750.671</td>
+<td>654.274</td>
+<td>545.285</td>
+<td><strong>859.660</strong></td>
+</tr>
+<tr>
+<td>Net cash from operating activities</td>
+<td><code>NetCashProvidedByUsedInOperatingActivities</code></td>
+<td>1,050.135</td>
+<td>940.446</td>
+<td>723.066</td>
+<td><strong>1,267.515</strong></td>
+</tr>
+<tr>
+<td>Purchases of property &amp; equipment</td>
+<td><code>PaymentsToAcquirePropertyPlantAndEquipment</code></td>
+<td>49.578</td>
+<td>32.119</td>
+<td>40.686</td>
+<td><strong>41.011</strong></td>
+</tr>
+<tr>
+<td>Capitalized software development costs</td>
+<td><code>PaymentsToDevelopSoftware</code></td>
+<td>85.840</td>
+<td>89.897</td>
+<td>58.684</td>
+<td><strong>117.053</strong></td>
+</tr>
+<tr>
+<td>Interest expense</td>
+<td><code>InterestExpenseNonoperating</code></td>
+<td>11.059</td>
+<td>9.609</td>
+<td>8.459</td>
+<td><strong>12.209</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Balance sheet at 2026-09-30: Cash &amp; cash equivalents 881.230 (counted); Short-term investments / marketable securities 4,352.357 (counted); Long-term debt, non-current 986.595 (counted); Long-term debt, current portion 0.000 (counted); Operating lease liabilities 320.639 (not counted); Total stockholders' equity (book value) 4,715.812 (counted).
+Diluted shares (latest quarter) 375.014M; same quarter last year 362.001M.
+Market data (Yahoo Finance via yfinance, 2026-11-22 21:17): price $157.37, beta 1.509, 10-year Treasury 4.91%, consensus revenue growth next FY 22.30%.</p>
+<h2 id="worked-example-2-non-gaap-bridge-and-derived-figures-formulas">2. Non-GAAP bridge and derived figures (formulas)</h2>
+<ul>
+<li>Non-GAAP adjustments = SBC 859.660 + acquired-intangible amortization 7.700 + other 0 = <strong>867.360</strong></li>
+<li>Operating income (Non-GAAP) = 96.844 + 867.360 = <strong>964.204</strong></li>
+<li>Operating margin m₀ = 964.204 ÷ 4,278.164 = <strong>22.5378%</strong></li>
+<li>D&amp;A used = 67.100 − 7.700 = 59.400  → D&amp;A% = 59.400 ÷ 4,278.164 = <strong>1.3884%</strong></li>
+<li>Capex used = 41.011 + 117.053 = 158.064  → Capex% = <strong>3.6947%</strong></li>
+<li>Working-capital residual = 1,267.515 − 262.015 − 67.100 − 859.660 = 78.740; ΔRevenue = 4,278.164 − 3,211.691 = 1,066.473  → NWC% (incremental) = <strong>7.3832%</strong></li>
+<li>Net cash = 5,233.587 − 986.595 − 0.000 = <strong>4,246.992</strong></li>
+<li>Diluted share change = 375.014 ÷ 362.001 − 1 = <strong>3.59%</strong></li>
+</ul>
+<h2 id="worked-example-3-discount-rate">3. Discount rate</h2>
+<ul>
+<li>Cost of equity = Rf + Beta × ERP = 4.91% + 1.51 × 5.50% = 13.21%</li>
+<li>Kd = 6.41% (interest $12.209M ÷ debt $986.595M vs Rf 4.91%); after tax: 6.41% × (1 − 21.0%) = 5.065%</li>
+<li>We = $157.37 × 375.014M ÷ ($157.37 × 375.014M + $986.595M) = 98.356%; Wd = 1.644%</li>
+<li>WACC(CAPM) = 98.356% × 13.212% + 1.644% × 5.065% = 13.0776%</li>
+<li>Active WACC (Standard (Direct Input)) = 13.10%   [CAPM 13.0776% rounded to 3 dp = 13.10%]</li>
+</ul>
+<h2 id="worked-example-4-forecast-and-free-cash-flow-years-1-10-year-11-terminal-ye">4. Forecast and free cash flow (Years 1-10, Year 11 = terminal year)</h2>
+<p>Growth fades in a straight line from 22.30% (Year 1) to 2.50% (Year 10); margin stays at 22.54% (target = TTM margin). Tax 21% on positive EBIT only.</p>
+<table>
+<thead>
+<tr>
+<th>Year</th>
+<th>Growth</th>
+<th>Revenue</th>
+<th>EBIT</th>
+<th>Tax</th>
+<th>NOPAT</th>
+<th>+ D&amp;A</th>
+<th>− Capex</th>
+<th>+ ΔNWC</th>
+<th>= UFCF</th>
+<th>Period</th>
+<th>Discount factor</th>
+<th>PV</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>22.30%</td>
+<td>5,232.195</td>
+<td>1,179.221</td>
+<td>-247.637</td>
+<td>931.585</td>
+<td>72.646</td>
+<td>193.312</td>
+<td>70.438</td>
+<td><strong>881.357</strong></td>
+<td>1.0</td>
+<td>0.884173</td>
+<td>779.272</td>
+</tr>
+<tr>
+<td>2</td>
+<td>20.10%</td>
+<td>6,283.866</td>
+<td>1,416.245</td>
+<td>-297.411</td>
+<td>1,118.834</td>
+<td>87.248</td>
+<td>232.168</td>
+<td>77.647</td>
+<td><strong>1,051.561</strong></td>
+<td>2.0</td>
+<td>0.781762</td>
+<td>822.071</td>
+</tr>
+<tr>
+<td>3</td>
+<td>17.90%</td>
+<td>7,408.677</td>
+<td>1,669.753</td>
+<td>-350.648</td>
+<td>1,319.105</td>
+<td>102.865</td>
+<td>273.726</td>
+<td>83.047</td>
+<td><strong>1,231.291</strong></td>
+<td>3.0</td>
+<td>0.691213</td>
+<td>851.085</td>
+</tr>
+<tr>
+<td>4</td>
+<td>15.70%</td>
+<td>8,571.840</td>
+<td>1,931.904</td>
+<td>-405.700</td>
+<td>1,526.204</td>
+<td>119.015</td>
+<td>316.701</td>
+<td>85.879</td>
+<td><strong>1,414.397</strong></td>
+<td>4.0</td>
+<td>0.611152</td>
+<td>864.412</td>
+</tr>
+<tr>
+<td>5</td>
+<td>13.50%</td>
+<td>9,729.038</td>
+<td>2,192.711</td>
+<td>-460.469</td>
+<td>1,732.242</td>
+<td>135.082</td>
+<td>359.456</td>
+<td>85.438</td>
+<td><strong>1,593.307</strong></td>
+<td>5.0</td>
+<td>0.540365</td>
+<td>860.967</td>
+</tr>
+<tr>
+<td>6</td>
+<td>11.30%</td>
+<td>10,828.419</td>
+<td>2,440.487</td>
+<td>-512.502</td>
+<td>1,927.985</td>
+<td>150.347</td>
+<td>400.074</td>
+<td>81.170</td>
+<td><strong>1,759.427</strong></td>
+<td>6.0</td>
+<td>0.477776</td>
+<td>840.612</td>
+</tr>
+<tr>
+<td>7</td>
+<td>9.10%</td>
+<td>11,813.806</td>
+<td>2,662.572</td>
+<td>-559.140</td>
+<td>2,103.432</td>
+<td>164.028</td>
+<td>436.481</td>
+<td>72.753</td>
+<td><strong>1,903.732</strong></td>
+<td>7.0</td>
+<td>0.422437</td>
+<td>804.207</td>
+</tr>
+<tr>
+<td>8</td>
+<td>6.90%</td>
+<td>12,628.958</td>
+<td>2,846.289</td>
+<td>-597.721</td>
+<td>2,248.568</td>
+<td>175.346</td>
+<td>466.598</td>
+<td>60.184</td>
+<td><strong>2,017.501</strong></td>
+<td>8.0</td>
+<td>0.373507</td>
+<td>753.551</td>
+</tr>
+<tr>
+<td>9</td>
+<td>4.70%</td>
+<td>13,222.519</td>
+<td>2,980.065</td>
+<td>-625.814</td>
+<td>2,354.251</td>
+<td>183.588</td>
+<td>488.528</td>
+<td>43.824</td>
+<td><strong>2,093.134</strong></td>
+<td>9.0</td>
+<td>0.330245</td>
+<td>691.248</td>
+</tr>
+<tr>
+<td>10</td>
+<td>2.50%</td>
+<td>13,553.082</td>
+<td>3,054.566</td>
+<td>-641.459</td>
+<td>2,413.107</td>
+<td>188.177</td>
+<td>500.742</td>
+<td>24.406</td>
+<td><strong>2,124.949</strong></td>
+<td>10.0</td>
+<td>0.291994</td>
+<td>620.472</td>
+</tr>
+<tr>
+<td>11</td>
+<td>2.50%</td>
+<td>13,891.909</td>
+<td>3,130.931</td>
+<td>-657.495</td>
+<td>2,473.435</td>
+<td>192.882</td>
+<td>513.260</td>
+<td>25.016</td>
+<td><strong>2,178.073</strong></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>Year 1 by hand:</p>
+<ul>
+<li>Revenue = 4,278.164 × (1 + 22.300%) = 5,232.195</li>
+<li>EBIT = 5,232.195 × 22.5378% = 1,179.221; tax = 21% × 1,179.221 = 247.637; NOPAT = 931.585</li>
+<li>D&amp;A = 5,232.195 × 1.3884% = 72.646; capex = 5,232.195 × 3.6947% = 193.312</li>
+<li>ΔNWC = 7.3832% × (5,232.195 − 4,278.164) = 70.438</li>
+<li>UFCF = 931.585 + 72.646 − 193.312 + 70.438 = <strong>881.357</strong></li>
+<li>PV = 881.357 ÷ (1 + 13.10%)¹ = 779.272</li>
+</ul>
+<h2 id="worked-example-5-terminal-value-enterprise-value-fair-value">5. Terminal value, enterprise value, fair value</h2>
+<ul>
+<li>PV₁ = $881.357M ÷ (1 + 13.10%)^1.00 = $779.272M;  Σ PV₁₋₁₀ = $7,887.898M  (Excel NPV cross-check $7,887.898M)</li>
+<li>TV = $2,178.073M ÷ (13.10% − 2.50%) = $20,547.859M</li>
+<li>PV(TV) = $20,547.859M ÷ (1 + 13.10%)^10.00 = $5,999.852M  (43.2% of EV)</li>
+<li>EV = $7,887.898M + $5,999.852M = $13,887.750M</li>
+<li>Equity = $13,887.750M + $5,233.587M − $986.595M − $0.000M = $18,134.742M</li>
+<li>Fair value = $18,134.742M ÷ 375.014M = $48.36  (-69.3% vs $157.37)</li>
+</ul>
+<h2 id="worked-example-6-sensitivity-fair-value-per-share">6. Sensitivity (fair value per share)</h2>
+<table>
+<thead>
+<tr>
+<th>WACC \ g</th>
+<th>1.0%</th>
+<th>1.5%</th>
+<th>2.0%</th>
+<th>2.5%</th>
+<th>3.0%</th>
+<th>3.5%</th>
+<th>4.0%</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>11.6%</td>
+<td>$51.81</td>
+<td>$52.83</td>
+<td>$53.96</td>
+<td>$55.22</td>
+<td>$56.62</td>
+<td>$58.19</td>
+<td>$59.97</td>
+</tr>
+<tr>
+<td>12.1%</td>
+<td>$49.72</td>
+<td>$50.62</td>
+<td>$51.60</td>
+<td>$52.69</td>
+<td>$53.89</td>
+<td>$55.24</td>
+<td>$56.75</td>
+</tr>
+<tr>
+<td>12.6%</td>
+<td>$47.82</td>
+<td>$48.60</td>
+<td>$49.47</td>
+<td>$50.41</td>
+<td>$51.46</td>
+<td>$52.62</td>
+<td>$53.91</td>
+</tr>
+<tr>
+<td>13.1%</td>
+<td>$46.07</td>
+<td>$46.77</td>
+<td>$47.53</td>
+<td>$48.36</td>
+<td>$49.27</td>
+<td>$50.28</td>
+<td>$51.39</td>
+</tr>
+<tr>
+<td>13.6%</td>
+<td>$44.48</td>
+<td>$45.09</td>
+<td>$45.76</td>
+<td>$46.49</td>
+<td>$47.29</td>
+<td>$48.17</td>
+<td>$49.14</td>
+</tr>
+<tr>
+<td>14.1%</td>
+<td>$43.01</td>
+<td>$43.55</td>
+<td>$44.15</td>
+<td>$44.79</td>
+<td>$45.49</td>
+<td>$46.26</td>
+<td>$47.11</td>
+</tr>
+<tr>
+<td>14.6%</td>
+<td>$41.65</td>
+<td>$42.14</td>
+<td>$42.66</td>
+<td>$43.24</td>
+<td>$43.86</td>
+<td>$44.53</td>
+<td>$45.27</td>
+</tr>
+</tbody>
+</table>
+<p>Centre cell $48.357505 = fair value $48.357505.</p>
+<h2 id="worked-example-7-reverse-dcf">7. Reverse DCF</h2>
+<ul>
+<li>Market EV = $157.37 × 375.014M − $4,246.992M = $54,768.959M</li>
+<li>a₁ = 0.1550, a₁₁ = 0.1550, b = 0.0738 (cash-flow coefficients per $1 of revenue)</li>
+<li>First bracket [33.0%, 34.0%] (f = $-1,865.3M → $1,788.4M); after 40 halvings width +1.82e-14; g* = 33.5184%; sign changes 1</li>
+<li>Σ PV $20,667.653M + PV(TV) $34,101.306M = $54,768.959M vs market EV $54,768.959M: tie-out -1.46e-09 $M</li>
+<li>Gap = 33.52% − 12.22% = 21.30%</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Low</th>
+<th>High</th>
+<th>Midpoint</th>
+<th>Model EV − market EV at midpoint</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>33.0000000000%</td>
+<td>34.0000000000%</td>
+<td>33.5000000000%</td>
+<td>-67.250409</td>
+</tr>
+<tr>
+<td>2</td>
+<td>33.5000000000%</td>
+<td>34.0000000000%</td>
+<td>33.7500000000%</td>
+<td>+853.290675</td>
+</tr>
+<tr>
+<td>3</td>
+<td>33.5000000000%</td>
+<td>33.7500000000%</td>
+<td>33.6250000000%</td>
+<td>+391.206838</td>
+</tr>
+<tr>
+<td>4</td>
+<td>33.5000000000%</td>
+<td>33.6250000000%</td>
+<td>33.5625000000%</td>
+<td>+161.526516</td>
+</tr>
+<tr>
+<td>5</td>
+<td>33.5000000000%</td>
+<td>33.5625000000%</td>
+<td>33.5312500000%</td>
+<td>+47.025331</td>
+</tr>
+<tr>
+<td>6</td>
+<td>33.5000000000%</td>
+<td>33.5312500000%</td>
+<td>33.5156250000%</td>
+<td>-10.140694</td>
+</tr>
+<tr>
+<td>…</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>39</td>
+<td>33.5183978460%</td>
+<td>33.5183978460%</td>
+<td>33.5183978460%</td>
+<td>-0.000000</td>
+</tr>
+<tr>
+<td>40</td>
+<td>33.5183978460%</td>
+<td>33.5183978460%</td>
+<td>33.5183978460%</td>
+<td>-0.000000</td>
+</tr>
+</tbody>
+</table>
+<h2 id="worked-example-8-irr-p-e-trailing-5-years">8. IRR (P/E, trailing, 5 years)</h2>
+<ul>
+<li>P/E: metric today $947.229M → Year 5 $2,154.109M</li>
+<li>Entry P/E = 62.30 on metric/share $2.53</li>
+<li>Exit price = 62.30 × $4.81 (+ net cash/share $9.49 if EV) = $299.95</li>
+<li>Cash flows/share: [-157.37, 0.00, 0.00, 0.00, 0.00, 299.95] → IRR = 13.77% (price-only CAGR 13.77%)</li>
+<li>Centre 13.77% vs simple return 13.77%</li>
+</ul>
+<h2 id="worked-example-9-calculator-check-using-only-the-rounded-numbers-above">9. Calculator check using only the rounded numbers above</h2>
+<p>Σ of the 10 PVs as printed = 7,887.897; PV(TV) = 20,547.859 ÷ 1.131^10 = 5,999.852; EV = 13,887.749; fair value = (13,887.749 + 4,246.992) ÷ 375.014 = <strong>$48.3575</strong> vs the engine's $48.3575 (difference $-0.0000, from rounding to 3 decimals).</p>
+<h2 id="worked-example-10-live-checks">10. Live checks</h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Status</th>
+<th>Numbers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Required inputs present</td>
+<td>PASS</td>
+<td>All 18 required inputs have a value.</td>
+</tr>
+<tr>
+<td>Terminal growth &lt; WACC</td>
+<td>PASS</td>
+<td>WACC 13.1000% vs terminal growth 2.5000% (gap +10.6000%). Gordon growth needs WACC &gt; g.</td>
+</tr>
+<tr>
+<td>Equity weight + debt weight = 100%</td>
+<td>PASS</td>
+<td>We 98.355745% + Wd 1.644255% = 100.0000000000%</td>
+</tr>
+<tr>
+<td>Sensitivity centre = base fair value</td>
+<td>PASS</td>
+<td>Centre $48.357505 vs fair value $48.357505 (diff +7.11e-15)</td>
+</tr>
+<tr>
+<td>Excel NPV() cross-check = Σ PV of UFCF</td>
+<td>PASS</td>
+<td>NPV(WACC, UFCF1..10)×(1+WACC)^0.0 = $7,887.898M vs Σ PV $7,887.898M</td>
+</tr>
+<tr>
+<td>Share of value from terminal value</td>
+<td>PASS</td>
+<td>PV(TV) $5,999.852M ÷ EV $13,887.750M = 43.2%</td>
+</tr>
+<tr>
+<td>Terminal value is positive</td>
+<td>PASS</td>
+<td>TV $20,547.859M from Year-11 UFCF $2,178.073M</td>
+</tr>
+<tr>
+<td>Value path starts at fair value</td>
+<td>PASS</td>
+<td>Year-0 price on the value path $48.357505 vs fair value $48.357505</td>
+</tr>
+<tr>
+<td>Reverse DCF: model EV ties to market EV</td>
+<td>PASS</td>
+<td>Model EV at g=33.518398%: $54,768.959M; market EV (price × shares − net cash): $54,768.959M; difference -1.46e-09 $M</td>
+</tr>
+<tr>
+<td>Reverse DCF solver residual</td>
+<td>PASS</td>
+<td>f(g*) = model EV − market EV = -1.448e-09 $M after 40 bisection steps; bracket width 1.8e-14</td>
+</tr>
+<tr>
+<td>Reverse DCF: single growth rate fits</td>
+<td>PASS</td>
+<td>Sign changes on the −50%…+150% grid: 1</td>
+</tr>
+<tr>
+<td>Implied value path starts at market price</td>
+<td>PASS</td>
+<td>Year-0 implied price $157.369995 vs price $157.369995</td>
+</tr>
+<tr>
+<td>Year-10 growth within 1pp of terminal growth</td>
+<td>PASS</td>
+<td>Year-10 growth 2.50% vs terminal 2.50%</td>
+</tr>
+<tr>
+<td>Units consistency ($M ↔ $K)</td>
+<td>PASS</td>
+<td>Fair value in $M: $48.357505; recomputed in $K (×1,000 money and shares): $48.357505</td>
+</tr>
+<tr>
+<td>IRR: NPV of cash flows at the IRR = 0</td>
+<td>PASS</td>
+<td>Σ CF_t/(1+13.7692%)^t = -2.84e-14 $/share</td>
+</tr>
+</tbody>
+</table><p class="meta">Source: <a href="../docs/worked_example.md">docs/worked_example.md</a></p></section><section id="formulas"><h1 id="formulas-formula-registry">Formula registry</h1>
+<p><em>Generated from <code>formulas.yaml</code> by <code>python -m scripts.gen_docs</code> - do not edit by hand.</em></p>
+<p>Each entry: the formula, the logic in plain English, where the same logic lives in the Excel workbook, the Python that implements it, the independent reference implementation, and the tests that verify it. <strong>Kind</strong> separates sourced facts, formulas and judgment calls.</p>
+<h2 id="formulas-data">Data</h2>
+<h3 id="formulas-data-ttm-trailing-twelve-month-ttm-figure"><code>data.ttm</code> - Trailing-twelve-month (TTM) figure</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> TTM = latest fiscal year + current year-to-date − prior-year year-to-date</li>
+<li><strong>Logic:</strong> Builds a full-year figure ending at the latest quarter from three reported periods. Falls back to the sum of the last four quarters when the YTD pieces are not tagged.</li>
+<li><strong>Inputs:</strong> <code>XBRL duration facts</code></li>
+<li><strong>Units:</strong> $M</li>
+<li><strong>Excel:</strong> 'Data &amp; Sources'!C25:F25 (row "Revenue")</li>
+<li><strong>Python:</strong> <code>valuation/sec_data.py::Facts._ttm_from</code></li>
+<li><strong>Reference implementation:</strong> <code>(parsed once by valuation/sec_data.py; both implementations consume its output)</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code>, <code>tests/test_provenance.py::test_ttm_parts_shown</code></li>
+</ul>
+<h3 id="formulas-data-nongaap-adj-non-gaap-adjustments"><code>data.nongaap_adj</code> - Non-GAAP adjustments</h3>
+<ul>
+<li><strong>Kind:</strong> judgment</li>
+<li><strong>Formula:</strong> Adj = [Basis = Non-GAAP] × (SBC·s₁ + acquired-intangible amortization·s₂ + other·s₃),  sᵢ ∈ {0,1}</li>
+<li><strong>Logic:</strong> Under Non-GAAP the selected adjustments are added back to GAAP operating income. Each has a Y/N switch (Data &amp; Sources §4). Zero under GAAP.</li>
+<li><strong>Inputs:</strong> <code>d_sbc</code>, <code>d_amort</code>, <code>other adjustments</code>, <code>in_Basis</code></li>
+<li><strong>Units:</strong> $M</li>
+<li><strong>Excel:</strong> 'Data &amp; Sources'!B51 (name <code>d_NonGAAPAdj</code>)</li>
+<li><strong>Python:</strong> <code>valuation.company.CompanyData.derive</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.resolve</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+</ul>
+<h3 id="formulas-data-ebit-margin-operating-margin-on-the-selected-basis"><code>data.ebit_margin</code> - Operating margin on the selected basis</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> m₀ = (GAAP operating income + Adj) ÷ Revenue_TTM</li>
+<li><strong>Logic:</strong> Starting margin of the forecast.</li>
+<li><strong>Inputs:</strong> <code>d_ebit</code>, <code>d_NonGAAPAdj</code>, <code>d_revenue</code></li>
+<li><strong>Units:</strong> decimal</li>
+<li><strong>Excel:</strong> 'Data &amp; Sources'!B54 (name <code>d_EBITMargin</code>)</li>
+<li><strong>Python:</strong> <code>valuation.company.CompanyData.derive</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.resolve</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+</ul>
+<h3 id="formulas-data-da-used-d-amp-a-used-in-the-cash-flow-build"><code>data.da_used</code> - D&amp;A used in the cash-flow build</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> D&amp;A_used = D&amp;A(cash-flow statement) − [Non-GAAP and amortization added back] × acquired-intangible amortization</li>
+<li><strong>Logic:</strong> Prevents adding amortization back twice (once in non-GAAP EBIT, once as D&amp;A).</li>
+<li><strong>Inputs:</strong> <code>d_da</code>, <code>d_amort</code></li>
+<li><strong>Units:</strong> $M</li>
+<li><strong>Excel:</strong> 'Data &amp; Sources'!B55 (name <code>d_DA_UFCF</code>)</li>
+<li><strong>Python:</strong> <code>valuation.company.CompanyData.derive</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.resolve</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+</ul>
+<h3 id="formulas-data-capex-capital-expenditure-used"><code>data.capex</code> - Capital expenditure used</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> Capex = purchases of PP&amp;E + [switch] × capitalized software</li>
+<li><strong>Logic:</strong> Cash invested in fixed assets and capitalized software.</li>
+<li><strong>Inputs:</strong> <code>d_capex_ppe</code>, <code>d_capex_sw</code></li>
+<li><strong>Units:</strong> $M</li>
+<li><strong>Excel:</strong> 'Data &amp; Sources'!B57 (name <code>d_Capex</code>)</li>
+<li><strong>Python:</strong> <code>valuation.company.CompanyData.derive</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.resolve</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+</ul>
+<h3 id="formulas-data-nwc-resid-working-capital-amp-other-operating-cash-item"><code>data.nwc_resid</code> - Working-capital &amp; other operating cash items (residual)</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> Residual = OCF − net income − D&amp;A − SBC</li>
+<li><strong>Logic:</strong> Everything in operating cash flow that is not earnings or a major non-cash charge; positive = cash inflow (e.g. growing deferred revenue).</li>
+<li><strong>Inputs:</strong> <code>d_ocf</code>, <code>d_net_income</code>, <code>d_da</code>, <code>d_sbc</code></li>
+<li><strong>Units:</strong> $M</li>
+<li><strong>Excel:</strong> 'Data &amp; Sources'!B59 (name <code>d_NWCResid</code>)</li>
+<li><strong>Python:</strong> <code>valuation.company.CompanyData.derive</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.resolve</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+</ul>
+<h3 id="formulas-data-net-cash-net-cash"><code>data.net_cash</code> - Net cash</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> Net cash = cash &amp; investments counted − debt counted − other claims</li>
+<li><strong>Logic:</strong> Balance-sheet items switched Y on Data &amp; Sources §5; operating leases and long-term securities are off by default.</li>
+<li><strong>Inputs:</strong> <code>in_Cash</code>, <code>in_Debt</code>, <code>in_Other</code></li>
+<li><strong>Units:</strong> $M</li>
+<li><strong>Excel:</strong> 'Start Here &amp; Guide'!B22 (name <code>in_NetCash</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.resolve_inputs</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.resolve</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+</ul>
+<h2 id="formulas-defaults">Defaults</h2>
+<h3 id="formulas-defaults-g1-year-1-revenue-growth-default"><code>defaults.g1</code> - Year-1 revenue growth (default)</h3>
+<ul>
+<li><strong>Kind:</strong> judgment</li>
+<li><strong>Formula:</strong> g₁ = analyst consensus next-FY revenue growth, else TTM revenue growth</li>
+<li><strong>Logic:</strong> Starting growth of the fade. Consensus comes from Yahoo Finance; override it with your own view.</li>
+<li><strong>Inputs:</strong> <code>d_Cons1y</code>, <code>d_RevGrowth</code></li>
+<li><strong>Units:</strong> decimal</li>
+<li><strong>Excel:</strong> 'Start Here &amp; Guide'!B33 (name <code>in_G1</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.resolve_inputs</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.resolve</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+</ul>
+<h3 id="formulas-defaults-ratios-d-amp-a-capex-and-working-capital-ratios-def"><code>defaults.ratios</code> - D&amp;A, capex and working-capital ratios (defaults)</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> D&amp;A% = D&amp;A_used ÷ Rev_TTM;  Capex% = Capex ÷ Rev_TTM;  NWC% = Residual ÷ ΔRev (incremental) or ÷ Rev_TTM (flat)</li>
+<li><strong>Logic:</strong> Today's reported ratios carried into every forecast year unless overridden.</li>
+<li><strong>Inputs:</strong> <code>d_DA_UFCF</code>, <code>d_Capex</code>, <code>d_NWCResid</code>, <code>d_revenue</code>, <code>d_dRev</code></li>
+<li><strong>Units:</strong> decimal</li>
+<li><strong>Excel:</strong> 'Start Here &amp; Guide'!B38 (name <code>in_NWCPct</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.resolve_inputs</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.resolve</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+</ul>
+<h2 id="formulas-wacc">WACC</h2>
+<h3 id="formulas-wacc-ke-cost-of-equity-capm"><code>wacc.ke</code> - Cost of equity (CAPM)</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> Ke = Rf + β × ERP</li>
+<li><strong>Logic:</strong> Return shareholders require: the risk-free rate plus beta times the equity risk premium.</li>
+<li><strong>Inputs:</strong> <code>in_Rf</code>, <code>in_Beta</code>, <code>in_ERP</code></li>
+<li><strong>Units:</strong> decimal</li>
+<li><strong>Excel:</strong> 'DCF Model'!F8 (name <code>in_Ke</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.compute_wacc</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.resolve</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code>, <code>tests/test_showwork.py::test_wacc_substitution</code></li>
+</ul>
+<h3 id="formulas-wacc-kd-pre-tax-cost-of-debt-default"><code>wacc.kd</code> - Pre-tax cost of debt (default)</h3>
+<ul>
+<li><strong>Kind:</strong> judgment</li>
+<li><strong>Formula:</strong> Kd = interest expense ÷ debt if that exceeds Rf and debt &gt; 0, else Rf + 1.5%</li>
+<li><strong>Logic:</strong> Uses the company's own interest burden when meaningful; low-coupon convertibles fall back to Rf + 1.5%.</li>
+<li><strong>Inputs:</strong> <code>d_interest</code>, <code>in_Debt</code>, <code>in_Rf</code></li>
+<li><strong>Units:</strong> decimal</li>
+<li><strong>Excel:</strong> 'DCF Model'!F9 (name <code>in_Kd</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.resolve_inputs</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.resolve</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+</ul>
+<h3 id="formulas-wacc-weights-capital-weights"><code>wacc.weights</code> - Capital weights</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> We = P·N ÷ (P·N + D);  Wd = 1 − We</li>
+<li><strong>Logic:</strong> Market value of equity versus book value of debt.</li>
+<li><strong>Inputs:</strong> <code>in_Price</code>, <code>in_Shares</code>, <code>in_Debt</code></li>
+<li><strong>Units:</strong> decimal</li>
+<li><strong>Excel:</strong> 'DCF Model'!F12 (name <code>in_We</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.compute_wacc</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.resolve</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code>, <code>tests/test_checks.py::test_checks_pass_on_ddog</code></li>
+</ul>
+<h3 id="formulas-wacc-capm-wacc-capm-build-up"><code>wacc.capm</code> - WACC (CAPM build-up)</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> WACC = We × Ke + Wd × Kd × (1 − t)</li>
+<li><strong>Logic:</strong> Blended required return of all capital providers.</li>
+<li><strong>Inputs:</strong> <code>in_We</code>, <code>in_Ke</code>, <code>in_Wd</code>, <code>in_Kd</code>, <code>in_TaxRate</code></li>
+<li><strong>Units:</strong> decimal</li>
+<li><strong>Excel:</strong> 'DCF Model'!F14 (name <code>in_WACC_CAPM</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.compute_wacc</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.resolve</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+</ul>
+<h3 id="formulas-wacc-active-active-discount-rate"><code>wacc.active</code> - Active discount rate</h3>
+<ul>
+<li><strong>Kind:</strong> judgment</li>
+<li><strong>Formula:</strong> WACC = direct input (Standard mode; default ROUND(CAPM WACC, 3)) or CAPM WACC (Advanced mode)</li>
+<li><strong>Logic:</strong> One flat rate for every year (no term structure).</li>
+<li><strong>Inputs:</strong> <code>in_WACCMode</code>, <code>in_WACC_Direct</code>, <code>in_WACC_CAPM</code></li>
+<li><strong>Units:</strong> decimal</li>
+<li><strong>Excel:</strong> 'DCF Model'!B31 (name <code>in_WACC</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.resolve_inputs</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.resolve</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code>, <code>tests/test_edge_cases.py::test_excel_round_half_away_from_zero</code></li>
+</ul>
+<h2 id="formulas-forecast">Forecast</h2>
+<h3 id="formulas-fc-auto-automatic-fade-growth-and-margin-paths"><code>fc.auto</code> - Automatic fade (growth and margin paths)</h3>
+<ul>
+<li><strong>Kind:</strong> judgment</li>
+<li><strong>Formula:</strong> g_t = g₁ + (g∞ − g₁)·(t − 1)/9;   m_t = m₀ + (m<em> − m₀)·min(t / T</em>, 1)</li>
+<li><strong>Logic:</strong> Growth falls in a straight line from Year-1 growth to terminal growth by Year 10; margin moves in a straight line to the target margin by the target year, then holds.</li>
+<li><strong>Inputs:</strong> <code>in_G1</code>, <code>in_TermG</code>, <code>in_EBITM0</code>, <code>in_MarginTarget</code>, <code>in_MarginYear</code></li>
+<li><strong>Units:</strong> decimal</li>
+<li><strong>Excel:</strong> 'Forecast Builder'!B9:K9 (name <code>fc_Growth</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.forecast</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.growth_and_margin</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code>, <code>tests/test_reference_agreement.py::test_dcf_agrees</code></li>
+</ul>
+<h3 id="formulas-fc-scenarios-bear-base-bull-scenario-paths"><code>fc.scenarios</code> - Bear / Base / Bull scenario paths</h3>
+<ul>
+<li><strong>Kind:</strong> judgment</li>
+<li><strong>Formula:</strong> Bear: g_t − 5pp·(10 − t)/9, m_t − 3pp·min(t/T*,1);   Bull: +5pp / +3pp;   Base = automatic fade (every cell editable)</li>
+<li><strong>Logic:</strong> Default scenario rows; select with Forecast Mode = Scenario.</li>
+<li><strong>Inputs:</strong> <code>fc_Mode</code>, <code>fc_Scenario</code></li>
+<li><strong>Units:</strong> decimal</li>
+<li><strong>Excel:</strong> 'Forecast Builder'!B31:K31 (name <code>fc_BearG</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.forecast</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.growth_and_margin</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+</ul>
+<h2 id="formulas-dcf">DCF</h2>
+<h3 id="formulas-dcf-revenue-revenue"><code>dcf.revenue</code> - Revenue</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> Rev_t = Rev_{t−1} × (1 + g_t),  Rev₀ = TTM revenue;  Year 11 uses g∞</li>
+<li><strong>Logic:</strong> Compounds TTM revenue along the selected growth path.</li>
+<li><strong>Inputs:</strong> <code>in_Rev0</code>, <code>fc_Growth</code></li>
+<li><strong>Units:</strong> $M</li>
+<li><strong>Excel:</strong> 'DCF Model'!B40:K40 (name <code>dcf_rev</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.schedule</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.build_years</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code>, <code>tests/test_reference_agreement.py::test_dcf_agrees</code></li>
+</ul>
+<h3 id="formulas-dcf-nopat-ebit-taxes-and-nopat"><code>dcf.nopat</code> - EBIT, taxes and NOPAT</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> EBIT_t = Rev_t × m_t;  Tax_t = t × max(EBIT_t, 0) [no benefit on losses] or t × EBIT_t [tax credit];  NOPAT_t = EBIT_t − Tax_t</li>
+<li><strong>Logic:</strong> Unlevered after-tax operating profit. By default losses get no tax credit.</li>
+<li><strong>Inputs:</strong> <code>in_TaxRate</code>, <code>in_LossTax</code></li>
+<li><strong>Units:</strong> $M</li>
+<li><strong>Excel:</strong> 'DCF Model'!B44:L44 (row "NOPAT ($M)")</li>
+<li><strong>Python:</strong> <code>valuation.engine.schedule</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.one_year</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code>, <code>tests/test_edge_cases.py::test_negative_margins_pay_no_tax</code></li>
+</ul>
+<h3 id="formulas-dcf-ufcf-unlevered-free-cash-flow"><code>dcf.ufcf</code> - Unlevered free cash flow</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> UFCF_t = NOPAT_t + Rev_t·D&amp;A% − Rev_t·Capex% + NWC_t,   NWC_t = NWC%·(Rev_t − Rev_{t−1}) [incremental] or NWC%·Rev_t [flat]</li>
+<li><strong>Logic:</strong> Cash the operations generate for all capital providers.</li>
+<li><strong>Inputs:</strong> <code>in_DAPct</code>, <code>in_CapexPct</code>, <code>in_NWCPct</code>, <code>in_NWCMethod</code></li>
+<li><strong>Units:</strong> $M</li>
+<li><strong>Excel:</strong> 'DCF Model'!B52:K52 (name <code>dcf_ufcf</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.schedule</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.one_year</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code>, <code>tests/test_reference_agreement.py::test_dcf_agrees</code></li>
+</ul>
+<h3 id="formulas-dcf-pv-discounting-and-npv-of-years-1-10"><code>dcf.pv</code> - Discounting and NPV of Years 1-10</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> PV_t = UFCF_t ÷ (1 + WACC)^(t − ½·mid);   NPV₁₋₁₀ = Σ PV_t</li>
+<li><strong>Logic:</strong> End-of-year discounting by default; mid-year moves each cash flow half a year earlier.</li>
+<li><strong>Inputs:</strong> <code>in_WACC</code>, <code>in_Timing</code></li>
+<li><strong>Units:</strong> $M</li>
+<li><strong>Excel:</strong> 'DCF Model'!B59 (name <code>dcf_SumPV</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.dcf</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.enterprise_value</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code>, <code>tests/test_checks.py::test_checks_pass_on_ddog</code></li>
+</ul>
+<h3 id="formulas-dcf-tv-perpetuity-terminal-value-gordon-growth"><code>dcf.tv_perpetuity</code> - Terminal value - Gordon growth</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> TV = UFCF₁₁ ÷ (WACC − g∞),  UFCF₁₁ built explicitly from Rev₁₁ = Rev₁₀(1 + g∞) at the Year-10 margin;  undefined if WACC ≤ g∞</li>
+<li><strong>Logic:</strong> Value at Year 10 of all cash flows after Year 10, growing forever at g∞. Year 11 is a normalised year with its own working-capital charge.</li>
+<li><strong>Inputs:</strong> <code>in_TermG</code>, <code>in_WACC</code></li>
+<li><strong>Units:</strong> $M</li>
+<li><strong>Excel:</strong> 'DCF Model'!B60 (name <code>dcf_TV</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.terminal_value</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.enterprise_value</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code>, <code>tests/test_edge_cases.py::test_terminal_growth_at_or_above_wacc</code></li>
+<li><strong>Applies when:</strong> in_TVMethod = Perpetuity (Gordon Growth)</li>
+</ul>
+<h3 id="formulas-dcf-tv-exit-terminal-value-exit-multiple"><code>dcf.tv_exit</code> - Terminal value - exit multiple</h3>
+<ul>
+<li><strong>Kind:</strong> judgment</li>
+<li><strong>Formula:</strong> TV = exit multiple × Year-10 metric (EBITDA, UFCF or revenue)</li>
+<li><strong>Logic:</strong> Sale of the business at the end of Year 10 at a market multiple.</li>
+<li><strong>Inputs:</strong> <code>in_ExitMult</code>, <code>in_ExitMetric</code></li>
+<li><strong>Units:</strong> $M</li>
+<li><strong>Excel:</strong> 'DCF Model'!B60 (name <code>dcf_TV</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.terminal_value</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.enterprise_value</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+<li><strong>Applies when:</strong> in_TVMethod = Exit Multiple</li>
+</ul>
+<h3 id="formulas-dcf-pv-tv-present-value-of-terminal-value"><code>dcf.pv_tv</code> - Present value of terminal value</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> PV(TV) = TV ÷ (1 + WACC)^N,  N = 10 − ½·mid (perpetuity) or 10 (exit multiple)</li>
+<li><strong>Logic:</strong> A perpetuity follows the cash-flow timing convention; an exit is a sale at the end of Year 10.</li>
+<li><strong>Inputs:</strong> <code>dcf_TV</code>, <code>in_WACC</code></li>
+<li><strong>Units:</strong> $M</li>
+<li><strong>Excel:</strong> 'DCF Model'!B62 (name <code>dcf_PVTV</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.dcf</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.enterprise_value</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+</ul>
+<h3 id="formulas-dcf-ev-enterprise-value"><code>dcf.ev</code> - Enterprise value</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> EV = NPV₁₋₁₀ + PV(TV)</li>
+<li><strong>Logic:</strong> Value of the operations.</li>
+<li><strong>Inputs:</strong> <code>dcf_SumPV</code>, <code>dcf_PVTV</code></li>
+<li><strong>Units:</strong> $M</li>
+<li><strong>Excel:</strong> 'DCF Model'!B63 (name <code>dcf_EV</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.dcf</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.enterprise_value</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_ddog_headline_parity</code></li>
+</ul>
+<h3 id="formulas-dcf-equity-equity-value"><code>dcf.equity</code> - Equity value</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> Equity = EV + cash − debt − other claims</li>
+<li><strong>Logic:</strong> Enterprise-to-equity bridge.</li>
+<li><strong>Inputs:</strong> <code>dcf_EV</code>, <code>in_NetCash</code></li>
+<li><strong>Units:</strong> $M</li>
+<li><strong>Excel:</strong> 'DCF Model'!B68 (name <code>dcf_Equity</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.dcf</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.dcf</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+</ul>
+<h3 id="formulas-dcf-fair-value-fair-value-per-share"><code>dcf.fair_value</code> - Fair value per share</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> Fair value = Equity ÷ diluted shares;  Upside = fair value ÷ price − 1</li>
+<li><strong>Logic:</strong> Intrinsic value per diluted share.</li>
+<li><strong>Inputs:</strong> <code>dcf_Equity</code>, <code>in_Shares</code>, <code>in_Price</code></li>
+<li><strong>Units:</strong> $/share</li>
+<li><strong>Excel:</strong> 'DCF Model'!B69 (name <code>dcf_FV</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.dcf</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.dcf</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_ddog_headline_parity</code>, <code>tests/test_reference_agreement.py::test_dcf_agrees</code></li>
+</ul>
+<h3 id="formulas-dcf-cross-checks-implied-exit-multiple-and-implied-perpetual"><code>dcf.cross_checks</code> - Implied exit multiple and implied perpetual growth</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> Implied EV/EBITDA = TV ÷ EBITDA₁₀;   implied g ≈ (TV·WACC − UFCF₁₀) ÷ (TV + UFCF₁₀)</li>
+<li><strong>Logic:</strong> Translate whichever terminal method you used into the other method's terms.</li>
+<li><strong>Inputs:</strong> <code>dcf_TV</code>, <code>in_WACC</code></li>
+<li><strong>Units:</strong> x / decimal</li>
+<li><strong>Excel:</strong> 'DCF Model'!B70 (name <code>dcf_ImpMult</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.dcf</code></li>
+<li><strong>Reference implementation:</strong> <code>(not re-implemented: pure arithmetic on checked values)</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+</ul>
+<h3 id="formulas-dcf-sensitivity-sensitivity-table-fair-value-per-share"><code>dcf.sensitivity</code> - Sensitivity table (fair value per share)</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> Cell(i,j) = [Σ UFCF_t (1+w_i)^−per_t + PV_TV(w_i, p_j) + net cash] ÷ shares;  w_i = WACC + 0.5pp·i, p_j = g∞ + 0.5pp·j (or multiple + 2.5x·j), i,j ∈ −3..3</li>
+<li><strong>Logic:</strong> Years 1-10 stay fixed; for perpetuity the Year-11 cash flow is rebuilt at each column's growth rate. The centre cell equals the base fair value (checked).</li>
+<li><strong>Inputs:</strong> <code>in_WACC</code>, <code>in_TermG</code>, <code>in_ExitMult</code></li>
+<li><strong>Units:</strong> $/share</li>
+<li><strong>Excel:</strong> 'DCF Model'!E108 (name <code>dcf_SensCentre</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.dcf_sensitivity</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.dcf</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code>, <code>tests/test_reference_agreement.py::test_dcf_agrees</code></li>
+</ul>
+<h3 id="formulas-dcf-value-over-time-value-of-the-company-and-the-share-at-th"><code>dcf.value_over_time</code> - Value of the company and the share at the end of each year</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> EV_t = Σ_{k&gt;t} UFCF_k ÷ (1+WACC)^(per_k − t) + TV ÷ (1+WACC)^(N − t);  Cash_t = net cash + Σ_{k≤t} UFCF_k (if retained);  Price_t = (EV_t + Cash_t) ÷ (shares × (1 + Δshares)^t)</li>
+<li><strong>Logic:</strong> What the model says the stock is worth in t years if the forecast is delivered. Holding at fair value earns about the WACC.</li>
+<li><strong>Inputs:</strong> <code>dcf_ufcf</code>, <code>dcf_TV</code>, <code>in_CashRetain</code>, <code>in_ShareChg</code></li>
+<li><strong>Units:</strong> $/share</li>
+<li><strong>Excel:</strong> 'DCF Model'!B80:L80 (name <code>dcf_PxPath</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.value_over_time</code></li>
+<li><strong>Reference implementation:</strong> <code>(checked against Excel only)</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code>, <code>tests/test_checks.py::test_checks_pass_on_ddog</code></li>
+</ul>
+<h2 id="formulas-reverse-dcf">Reverse DCF</h2>
+<h3 id="formulas-rdcf-target-market-enterprise-value-the-target"><code>rdcf.target</code> - Market enterprise value (the target)</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> Market EV = price × diluted shares − net cash</li>
+<li><strong>Logic:</strong> What the market pays for the operations today.</li>
+<li><strong>Inputs:</strong> <code>in_Price</code>, <code>in_Shares</code>, <code>in_NetCash</code></li>
+<li><strong>Units:</strong> $M</li>
+<li><strong>Excel:</strong> 'Reverse DCF'!F20 (name <code>rd_Target</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.reverse_dcf</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.reverse_dcf</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+</ul>
+<h3 id="formulas-rdcf-ev-of-g-model-ev-as-a-function-of-constant-growth-g"><code>rdcf.ev_of_g</code> - Model EV as a function of constant growth g</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> EV(g) = Rev₀ Σ_{t=1..10} (1+g)^t [a_t + b·g/(1+g)] (1+WACC)^−P_t + TV(g)·(1+WACC)^−N;   a_t = m_t − t·max(m_t,0) + D&amp;A% − Capex% [+ NWC% if flat];  b = NWC% if incremental</li>
+<li><strong>Logic:</strong> Same mechanics as the DCF Model with one unknown: a constant revenue growth rate for Years 1-10. Margins follow the forecast path or stay at TTM.</li>
+<li><strong>Inputs:</strong> <code>rd_MarginSrc</code>, <code>in_WACC</code>, <code>in_TermG</code></li>
+<li><strong>Units:</strong> $M</li>
+<li><strong>Excel:</strong> 'Reverse DCF'!B100:K100 (name <code>rd_A</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.rdcf_ev</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.reverse_dcf</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code>, <code>tests/test_reference_agreement.py::test_reverse_dcf_agrees</code></li>
+</ul>
+<h3 id="formulas-rdcf-solve-solving-for-the-implied-growth-grid-scan-bisectio"><code>rdcf.solve</code> - Solving for the implied growth (grid scan + bisection)</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> Scan g = −50%, −49%, …, +150%; take the first bracket where EV(g) − market EV changes sign; halve the bracket 40 times; g* = midpoint of the 40th bracket.  No sign change ⇒ 'No solution in range'</li>
+<li><strong>Logic:</strong> A macro-free root finder that Excel can run. Multiple sign changes are reported; the lowest root is shown.</li>
+<li><strong>Inputs:</strong> <code>rd_Target</code></li>
+<li><strong>Units:</strong> decimal</li>
+<li><strong>Excel:</strong> 'Reverse DCF'!B14 (name <code>rd_G</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.reverse_dcf</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.reverse_dcf</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_ddog_headline_parity</code>, <code>tests/test_edge_cases.py::test_reverse_dcf_no_solution</code></li>
+</ul>
+<h3 id="formulas-rdcf-proof-proof-schedule-and-tie-out"><code>rdcf.proof</code> - Proof schedule and tie-out</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> Rebuild Years 1-11 at g*;  tie-out = Σ PV + PV(TV) − market EV ≈ 0</li>
+<li><strong>Logic:</strong> The answer is only trusted if the full schedule at g* reproduces market EV.</li>
+<li><strong>Inputs:</strong> <code>rd_G</code></li>
+<li><strong>Units:</strong> $M</li>
+<li><strong>Excel:</strong> 'Reverse DCF'!B51 (name <code>rd_TieOut</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.reverse_dcf</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.reverse_dcf</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_checks.py::test_checks_pass_on_ddog</code>, <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+</ul>
+<h3 id="formulas-rdcf-gap-expectation-gap"><code>rdcf.gap</code> - Expectation gap</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> Gap = g* − your forecast's 10-year revenue CAGR,  CAGR = (Rev₁₀ ÷ Rev₀)^(1/10) − 1</li>
+<li><strong>Logic:</strong> Positive = the market expects more growth than your forecast.</li>
+<li><strong>Inputs:</strong> <code>rd_G</code>, <code>dcf_rev</code></li>
+<li><strong>Units:</strong> decimal</li>
+<li><strong>Excel:</strong> 'Reverse DCF'!B26 (name <code>rd_Gap</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.reverse_dcf</code></li>
+<li><strong>Reference implementation:</strong> <code>(arithmetic on checked values)</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+</ul>
+<h2 id="formulas-irr">IRR</h2>
+<h3 id="formulas-irr-metric-path-metric-path-for-the-chosen-multiple"><code>irr.metric_path</code> - Metric path for the chosen multiple</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> Metric_t = DCF line at Year t (trailing) or t+1 (forward); EPS scales net income on the selected basis by NOPAT_t ÷ NOPAT₀ (revenue ratio if either is ≤ 0); gross profit and book value scale with revenue; DPS grows at the dividend growth rate</li>
+<li><strong>Logic:</strong> Every IRR metric comes from the same forecast as the DCF.</li>
+<li><strong>Inputs:</strong> <code>irr_Mult</code>, <code>irr_Basis</code>, <code>irr_GSrc</code>, <code>irr_GMan</code></li>
+<li><strong>Units:</strong> $M / $ per share</li>
+<li><strong>Excel:</strong> 'IRR Analysis'!B21 (name <code>irr_EntryPS</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.irr_analysis</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.irr</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code>, <code>tests/test_reference_agreement.py::test_irr_agrees</code></li>
+</ul>
+<h3 id="formulas-irr-entry-multiple-entry-multiple"><code>irr.entry_multiple</code> - Entry multiple</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> P multiples: price ÷ metric/share;  EV multiples: (price − net cash/share) ÷ metric/share;  yields: metric/share ÷ price</li>
+<li><strong>Logic:</strong> Computed from today's price so it always reconciles; not meaningful (n/m) when the metric is ≤ 0.</li>
+<li><strong>Inputs:</strong> <code>in_Price</code>, <code>in_NetCashPS</code></li>
+<li><strong>Units:</strong> x</li>
+<li><strong>Excel:</strong> 'IRR Analysis'!B14 (name <code>irr_Entry</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.irr_analysis</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.irr</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+</ul>
+<h3 id="formulas-irr-exit-price-exit-price"><code>irr.exit_price</code> - Exit price</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> Exit price_H = exit multiple × metric/share_H [+ net cash/share_H for EV multiples];  yields: metric/share ÷ exit yield</li>
+<li><strong>Logic:</strong> Exit multiple defaults to today's multiple (no re-rating). Net cash is held constant or grows with retained FCF less dividends.</li>
+<li><strong>Inputs:</strong> <code>irr_Exit</code>, <code>irr_H</code>, <code>irr_Cash</code>, <code>irr_S</code></li>
+<li><strong>Units:</strong> $/share</li>
+<li><strong>Excel:</strong> 'IRR Analysis'!B44 (name <code>irr_ExitPx</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.irr_analysis</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.irr</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+</ul>
+<h3 id="formulas-irr-irr-irr-annualized-return-incl-dividends"><code>irr.irr</code> - IRR (annualized return incl. dividends)</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> Find r with −P₀ + Σ_{t&lt;H} DPS_t/(1+r)^t + (DPS_H + exit price_H)/(1+r)^H = 0</li>
+<li><strong>Logic:</strong> Excel IRR() on per-share cash flows. Not meaningful when the exit price is ≤ 0 or the multiple is n/m.</li>
+<li><strong>Inputs:</strong> <code>irr_ExitPx</code>, <code>in_Price</code>, <code>d_dps</code>, <code>irr_DG</code></li>
+<li><strong>Units:</strong> decimal per year</li>
+<li><strong>Excel:</strong> 'IRR Analysis'!B16 (name <code>irr_IRR</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.excel_irr</code></li>
+<li><strong>Reference implementation:</strong> <code>reference_impl.simple_valuation.irr_bisect</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_ddog_headline_parity</code>, <code>tests/test_edge_cases.py::test_zero_dividend_irr</code></li>
+</ul>
+<h3 id="formulas-irr-sensitivity-irr-sensitivity-entry-exit-multiple"><code>irr.sensitivity</code> - IRR sensitivity (entry × exit multiple)</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> Cell(i,j) = ((exit price(j) + cumulative dividends) ÷ entry price(i))^(1/H) − 1, multiples × 0.7…1.3</li>
+<li><strong>Logic:</strong> Simple (not reinvested) annualized return; the centre equals the IRR when there are no dividends.</li>
+<li><strong>Inputs:</strong> <code>irr_Entry</code>, <code>irr_Exit</code></li>
+<li><strong>Units:</strong> decimal per year</li>
+<li><strong>Excel:</strong> 'IRR Analysis'!E52 (name <code>irr_SensCentre</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.irr_analysis</code></li>
+<li><strong>Reference implementation:</strong> <code>(checked against Excel only)</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+</ul>
+<h2 id="formulas-units">Units</h2>
+<h3 id="formulas-units-convert-unit-conversion"><code>units.convert</code> - Unit conversion</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> $M = $K ÷ 1,000 = $B × 1,000</li>
+<li><strong>Logic:</strong> The engine works in $ millions and millions of shares; per-share values are unit-free (checked live).</li>
+<li><strong>Inputs:</strong> -</li>
+<li><strong>Units:</strong> $M</li>
+<li><strong>Excel:</strong> 'Start Here &amp; Guide'!B19 (name <code>in_Cash</code>)</li>
+<li><strong>Python:</strong> <code>valuation.units.to_millions</code></li>
+<li><strong>Reference implementation:</strong> <code>(n/a)</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_edge_cases.py::test_units_round_trip</code>, <code>tests/test_edge_cases.py::test_units_scale_invariance</code></li>
+</ul>
+<h2 id="formulas-output-chains-logic-page">Output chains (Logic page)</h2>
+<ul>
+<li><strong>Fair value per share:</strong> <code>data.ebit_margin</code> → <code>defaults.ratios</code> → <code>wacc.active</code> → <code>fc.auto</code> → <code>dcf.revenue</code> → <code>dcf.nopat</code> → <code>dcf.ufcf</code> → <code>dcf.pv</code> → <code>dcf.tv_perpetuity</code> → <code>dcf.tv_exit</code> → <code>dcf.pv_tv</code> → <code>dcf.ev</code> → <code>dcf.equity</code> → <code>dcf.fair_value</code></li>
+<li><strong>Enterprise value:</strong> <code>dcf.pv</code> → <code>dcf.tv_perpetuity</code> → <code>dcf.tv_exit</code> → <code>dcf.pv_tv</code> → <code>dcf.ev</code></li>
+<li><strong>WACC:</strong> <code>wacc.ke</code> → <code>wacc.kd</code> → <code>wacc.weights</code> → <code>wacc.capm</code> → <code>wacc.active</code></li>
+<li><strong>Terminal value:</strong> <code>dcf.tv_perpetuity</code> → <code>dcf.tv_exit</code> → <code>dcf.pv_tv</code> → <code>dcf.cross_checks</code></li>
+<li><strong>Value over time:</strong> <code>dcf.value_over_time</code></li>
+<li><strong>Sensitivity:</strong> <code>dcf.sensitivity</code></li>
+<li><strong>Implied growth (Reverse DCF):</strong> <code>rdcf.target</code> → <code>rdcf.ev_of_g</code> → <code>rdcf.solve</code> → <code>rdcf.proof</code> → <code>rdcf.gap</code></li>
+<li><strong>IRR:</strong> <code>irr.metric_path</code> → <code>irr.entry_multiple</code> → <code>irr.exit_price</code> → <code>irr.irr</code> → <code>irr.sensitivity</code></li>
+<li><strong>Data bridge:</strong> <code>data.ttm</code> → <code>data.nongaap_adj</code> → <code>data.ebit_margin</code> → <code>data.da_used</code> → <code>data.capex</code> → <code>data.nwc_resid</code> → <code>data.net_cash</code> → <code>defaults.g1</code> → <code>defaults.ratios</code></li>
+</ul><p class="meta">Source: <a href="../docs/formulas.md">docs/formulas.md</a></p></section><section id="assumptions"><h1 id="assumptions-assumptions-register">Assumptions register</h1>
+<p><em>Generated from <code>assumptions.yaml</code> by <code>python -m scripts.gen_docs</code>. Sensitivities are real re-runs of the engine on the DDOG Non-GAAP reference snapshot (data as of 2026-11-22 21:17), not descriptions.</em></p>
+<table>
+<thead>
+<tr>
+<th>Assumption</th>
+<th>Default</th>
+<th>Current value</th>
+<th>Sensitivity (fair value / implied growth)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Marginal tax rate</strong> (<code>in_TaxRate</code>)</td>
+<td>21% (US federal statutory)</td>
+<td>21.00%</td>
+<td>16.00%: $50.96 / 32.52% · base: $48.36 / 33.52% · 26.00%: $45.75 / 34.59%</td>
+</tr>
+<tr>
+<td><strong>Equity risk premium</strong> (<code>in_ERP</code>)</td>
+<td>5.5%</td>
+<td>5.50%</td>
+<td>4.50%: $55.22 / 30.35% · base: $48.36 / 33.52% · 6.50%: $43.24 / 36.50%</td>
+</tr>
+<tr>
+<td><strong>Discount rate (WACC), one flat rate for all years</strong> (<code>in_WACC_Direct</code>)</td>
+<td>CAPM WACC rounded to 0.1%</td>
+<td>13.10%</td>
+<td>12.10%: $52.69 / 31.43% · base: $48.36 / 33.52% · 14.10%: $44.79 / 35.52%</td>
+</tr>
+<tr>
+<td><strong>Terminal (perpetual) growth</strong> (<code>in_TermG</code>)</td>
+<td>2.5%</td>
+<td>2.50%</td>
+<td>2.00%: $47.00 / 34.01% · base: $48.36 / 33.52% · 3.00%: $49.84 / 33.00%</td>
+</tr>
+<tr>
+<td><strong>Exit multiple (exit-multiple method only)</strong> (<code>in_ExitMult</code>)</td>
+<td>15x Year-10 EBITDA</td>
+<td>15.0x</td>
+<td>12.5x: $63.92 / 26.85% · base: $70.23 / 24.97% · 17.5x: $76.54 / 23.38%</td>
+</tr>
+<tr>
+<td><strong>Growth fade shape</strong> (<code>in_G1</code>)</td>
+<td>Straight line from Year-1 growth (consensus) to terminal growth by Year 10</td>
+<td>22.30%</td>
+<td>17.30%: $42.05 / 33.52% · base: $48.36 / 33.52% · 27.30%: $55.80 / 33.52%</td>
+</tr>
+<tr>
+<td><strong>Target operating margin</strong> (<code>in_MarginTarget</code>)</td>
+<td>= today's TTM margin (no operating leverage)</td>
+<td>22.54%</td>
+<td>17.54%: $41.59 / 37.23% · base: $48.36 / 33.52% · 27.54%: $55.12 / 30.64%</td>
+</tr>
+<tr>
+<td><strong>Capex intensity</strong> (<code>in_CapexPct</code>)</td>
+<td>TTM capex ÷ TTM revenue</td>
+<td>3.69%</td>
+<td>2.69%: $50.67 / 32.63% · base: $48.36 / 33.52% · 4.69%: $46.05 / 34.47%</td>
+</tr>
+<tr>
+<td><strong>Working-capital intensity</strong> (<code>in_NWCPct</code>)</td>
+<td>TTM residual (OCF − NI − D&amp;A − SBC) ÷ change in revenue</td>
+<td>7.38%</td>
+<td>2.38%: $47.52 / 34.01% · base: $48.36 / 33.52% · 12.38%: $49.19 / 33.05%</td>
+</tr>
+<tr>
+<td><strong>Annual change in share count</strong> (<code>in_ShareChg</code>)</td>
+<td>Last year's diluted share change</td>
+<td>3.59%</td>
+<td>2.59%: $48.36 / 33.52% · base: $48.36 / 33.52% · 4.59%: $48.36 / 33.52%</td>
+</tr>
+<tr>
+<td><strong>Year-end discounting</strong></td>
+<td>End-of-year</td>
+<td>-</td>
+<td>base $48.36 / 33.52% → in_Timing = Mid-year: $50.71 / 32.60%</td>
+</tr>
+<tr>
+<td><strong>Stock-based compensation treatment</strong></td>
+<td>Workbook basis chosen at creation (Non-GAAP adds SBC back to operating income)</td>
+<td>-</td>
+<td>base $48.36 / 33.52% → in_Basis = GAAP: $11.78 / 92.68%</td>
+</tr>
+<tr>
+<td><strong>No tax benefit on operating losses</strong></td>
+<td>No tax benefit</td>
+<td>-</td>
+<td>base $48.36 / 33.52% → in_LossTax = Tax credit on losses: $48.36 / 33.52%</td>
+</tr>
+<tr>
+<td><strong>Terminal value method</strong></td>
+<td>Perpetuity (Gordon growth)</td>
+<td>-</td>
+<td>base $48.36 / 33.52% → in_TVMethod = Exit Multiple: $70.23 / 24.97%</td>
+</tr>
+</tbody>
+</table>
+<h2 id="assumptions-why-each-default-and-what-would-change-it">Why each default, and what would change it</h2>
+<h3 id="assumptions-marginal-tax-rate">Marginal tax rate</h3>
+<ul>
+<li><strong>Default:</strong> 21% (US federal statutory)</li>
+<li><strong>Why:</strong> Statutory rate on NOPAT; effective tax rates are distorted by stock-comp deductions and NOLs. The TTM effective rate is shown beside it for reference.</li>
+<li><strong>What would change it:</strong> State taxes (often +2-5pp), large foreign operations, or a long NOL shield.</li>
+</ul>
+<h3 id="assumptions-equity-risk-premium">Equity risk premium</h3>
+<ul>
+<li><strong>Default:</strong> 5.5%</li>
+<li><strong>Why:</strong> Middle of the 4-6% range of published implied ERP estimates (e.g. Damodaran).</li>
+<li><strong>What would change it:</strong> Your house view of market risk pricing; only matters in CAPM mode or through the default direct WACC.</li>
+</ul>
+<h3 id="assumptions-discount-rate-wacc-one-flat-rate-for-all-years">Discount rate (WACC), one flat rate for all years</h3>
+<ul>
+<li><strong>Default:</strong> CAPM WACC rounded to 0.1%</li>
+<li><strong>Why:</strong> A single rate is standard for a 10-year DCF; there is no term structure or changing capital mix.</li>
+<li><strong>What would change it:</strong> Your hurdle rate, a changing leverage plan, or an industry beta.</li>
+</ul>
+<h3 id="assumptions-terminal-perpetual-growth">Terminal (perpetual) growth</h3>
+<ul>
+<li><strong>Default:</strong> 2.5%</li>
+<li><strong>Why:</strong> Close to long-run nominal GDP growth; a business cannot outgrow the economy forever.</li>
+<li><strong>What would change it:</strong> Inflation expectations, a structurally declining industry (lower), or a much longer high-growth runway (extend the forecast instead).</li>
+</ul>
+<h3 id="assumptions-exit-multiple-exit-multiple-method-only">Exit multiple (exit-multiple method only)</h3>
+<ul>
+<li><strong>Default:</strong> 15x Year-10 EBITDA</li>
+<li><strong>Why:</strong> A mature-company multiple; today's multiple is a poor anchor for a business ten years older.</li>
+<li><strong>What would change it:</strong> Sector multiples for mature peers.</li>
+</ul>
+<h3 id="assumptions-growth-fade-shape">Growth fade shape</h3>
+<ul>
+<li><strong>Default:</strong> Straight line from Year-1 growth (consensus) to terminal growth by Year 10</li>
+<li><strong>Why:</strong> Simple, transparent and conservative for high-growth companies.</li>
+<li><strong>What would change it:</strong> A visible multi-year backlog (hold growth longer: Manual Override) or a maturing market (faster fade). Sensitivity shown: Year-1 growth ±5pp.</li>
+</ul>
+<h3 id="assumptions-target-operating-margin">Target operating margin</h3>
+<ul>
+<li><strong>Default:</strong> = today's TTM margin (no operating leverage)</li>
+<li><strong>Why:</strong> Neutral starting point: the model does not assume margin expansion unless you do.</li>
+<li><strong>What would change it:</strong> Your view of margin at scale (software often 25-35%).</li>
+</ul>
+<h3 id="assumptions-capex-intensity">Capex intensity</h3>
+<ul>
+<li><strong>Default:</strong> TTM capex ÷ TTM revenue</li>
+<li><strong>Why:</strong> Today's reinvestment rate carried forward.</li>
+<li><strong>What would change it:</strong> Planned data-centre build-outs, or a capex-light shift. Long-run capex should at least match D&amp;A.</li>
+</ul>
+<h3 id="assumptions-working-capital-intensity">Working-capital intensity</h3>
+<ul>
+<li><strong>Default:</strong> TTM residual (OCF − NI − D&amp;A − SBC) ÷ change in revenue</li>
+<li><strong>Why:</strong> Captures the deferred-revenue tailwind of subscription businesses.</li>
+<li><strong>What would change it:</strong> Billing-term changes, or using Flat mode for businesses whose working capital scales with revenue rather than growth.</li>
+</ul>
+<h3 id="assumptions-annual-change-in-share-count">Annual change in share count</h3>
+<ul>
+<li><strong>Default:</strong> Last year's diluted share change</li>
+<li><strong>Why:</strong> Dilution from stock compensation is a real cost per share in the value-over-time table and the IRR.</li>
+<li><strong>What would change it:</strong> A buyback programme, or a slowdown in equity grants.</li>
+</ul>
+<h3 id="assumptions-year-end-discounting">Year-end discounting</h3>
+<ul>
+<li><strong>Default:</strong> End-of-year</li>
+<li><strong>Why:</strong> Conservative and the simplest to audit; mid-year assumes cash arrives evenly through the year.</li>
+<li><strong>What would change it:</strong> House convention; mid-year is common in banking models.</li>
+</ul>
+<h3 id="assumptions-stock-based-compensation-treatment">Stock-based compensation treatment</h3>
+<ul>
+<li><strong>Default:</strong> Workbook basis chosen at creation (Non-GAAP adds SBC back to operating income)</li>
+<li><strong>Why:</strong> Non-GAAP shows how the company presents itself; GAAP treats SBC as the real cost it is. Sensitivity shown: switch to GAAP.</li>
+<li><strong>What would change it:</strong> Whether you think SBC is a cash-equivalent cost (GAAP) or not. Under Non-GAAP, dilution is captured only through the share-count drift.</li>
+</ul>
+<h3 id="assumptions-no-tax-benefit-on-operating-losses">No tax benefit on operating losses</h3>
+<ul>
+<li><strong>Default:</strong> No tax benefit</li>
+<li><strong>Why:</strong> Realistic unless the company has large usable NOLs or profitable group entities.</li>
+<li><strong>What would change it:</strong> Evidence of usable tax losses.</li>
+</ul>
+<h3 id="assumptions-terminal-value-method">Terminal value method</h3>
+<ul>
+<li><strong>Default:</strong> Perpetuity (Gordon growth)</li>
+<li><strong>Why:</strong> Intrinsic, does not import today's market multiples.</li>
+<li><strong>What would change it:</strong> When a transaction multiple is the relevant exit (private equity style analysis).</li>
+</ul><p class="meta">Source: <a href="../docs/assumptions.md">docs/assumptions.md</a></p></section><section id="methodology"><h1 id="methodology-methodology">Methodology</h1>
+<p>This document separates the three kinds of content in the model. Every number in the app carries one of these labels.</p>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>What it is</th>
+<th>Where you check it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Sourced fact</strong></td>
+<td>A figure reported by the company (SEC XBRL) or a market feed (Yahoo Finance)</td>
+<td>The source tag: XBRL tag, period, fetch time, link to the filing</td>
+</tr>
+<tr>
+<td><strong>Formula</strong></td>
+<td>Arithmetic on facts and inputs</td>
+<td><code>formulas.yaml</code> / <a href="#formulas">formulas.md</a>, the Logic page, the "show your work" panels</td>
+</tr>
+<tr>
+<td><strong>Judgment call</strong></td>
+<td>A default someone chose (tax rate, ERP, terminal growth, fade shape, …)</td>
+<td><a href="#assumptions">assumptions.md</a> and the Assumptions page, each with its live sensitivity</td>
+</tr>
+</tbody>
+</table>
+<h2 id="methodology-1-data-sourced-facts">1. Data (sourced facts)</h2>
+<ul>
+<li><strong>Financial statements</strong>: SEC EDGAR XBRL <code>companyfacts</code> API, parsed by <code>valuation/sec_data.py</code> (the same parser the Excel builder uses) so the app and
+  the workbook read identical numbers. Trailing-twelve-month (TTM) figures = latest fiscal year + current year-to-date −
+  prior-year year-to-date; each part is listed with its filing.</li>
+<li><strong>Filings directory</strong>: SEC <code>submissions</code> API (latest 10-K, 10-Q and the Item 2.02 earnings 8-K with Exhibit 99.1).</li>
+<li><strong>Market data</strong>: Yahoo Finance via <code>yfinance</code> (price, 5-year beta, ^TNX 10-year yield, analyst revenue-growth consensus).
+  Third-party and unofficial; there is no filing to check these against.</li>
+<li>Every live fetch is saved unmodified as a timestamped JSON file in <code>data_snapshots/</code>; any snapshot can be replayed.</li>
+</ul>
+<h2 id="methodology-2-from-facts-to-inputs-formulas">2. From facts to inputs (formulas)</h2>
+<p>Non-GAAP bridge (SBC, acquired-intangible amortization and other adjustments, each switchable), D&amp;A used, capex used
+(PP&amp;E + capitalized software), the working-capital residual (OCF − NI − D&amp;A − SBC), cash / debt / other claims counted
+(each balance-sheet line switchable), diluted share change. See <code>data.*</code> entries in <a href="#formulas">formulas.md</a>.</p>
+<h2 id="methodology-3-discount-rate">3. Discount rate</h2>
+<p>CAPM: Ke = Rf + β × ERP; Kd = interest ÷ debt if above Rf else Rf + 1.5%; WACC = We·Ke + Wd·Kd(1 − t) with market-value
+equity and book debt. Standard mode uses a direct WACC, defaulting to the CAPM figure rounded to 0.1%. One flat rate for
+all years.</p>
+<h2 id="methodology-4-forecast">4. Forecast</h2>
+<p>Ten explicit years. Automatic fade: growth falls linearly from Year-1 growth (consensus, else TTM) to terminal growth by
+Year 10; margin moves linearly from TTM to a target by a target year. Manual Override replaces any year; Scenario selects
+editable Bear / Base / Bull rows (defaults ±5pp growth fading to zero, ±3pp margin phased in).</p>
+<h2 id="methodology-5-dcf">5. DCF</h2>
+<p>UFCF_t = EBIT_t − tax + D&amp;A − capex + ΔNWC, tax only on positive EBIT by default. Discounting end-of-year (or mid-year).
+Terminal value: Gordon growth on an explicitly built Year 11 (Year-10 margin, Year-11 working-capital charge), or an exit
+multiple on Year-10 EBITDA / UFCF / revenue. EV = Σ PV + PV(TV); equity = EV + net cash; fair value = equity ÷ diluted
+shares. A 7×7 sensitivity on WACC × terminal parameter, and a value-over-time path (price at the end of each year).</p>
+<h2 id="methodology-6-reverse-dcf">6. Reverse DCF</h2>
+<p>Solves the constant 10-year revenue growth g that makes model EV equal market EV (price × shares − net cash), with the same
+margins, tax, D&amp;A, capex, working capital and terminal method as the DCF. Root finding: a 1% grid from −50% to +150%,
+then 40 bisection steps in the first bracket where the sign changes. No sign change → "No solution in range"; more than
+one → the lowest root is shown and flagged. A proof schedule rebuilds the years at g and must tie out to market EV.</p>
+<h2 id="methodology-7-irr">7. IRR</h2>
+<p>Eleven multiples × trailing / forward. Metric paths come from the DCF lines; the entry multiple is computed from today's
+price; the exit multiple defaults to the entry multiple; exit price = multiple × metric per share (+ net cash per share
+for EV multiples). IRR on per-share cash flows (−price, dividends, exit price), like Excel's IRR().</p>
+<h2 id="methodology-8-how-correctness-is-established">8. How correctness is established</h2>
+<ol>
+<li><strong>Excel parity</strong> - the owner's private builder writes the workbook, LibreOffice recalculates it, and every compared value
+   across all scenarios (DDOG GAAP / Non-GAAP, synthetic profitable and loss-making companies, every toggle, all 22 IRR
+   multiples) is checked against the engine at 0.1% tolerance (<code>tests/test_excel_parity.py</code>; counts in
+   VERIFICATION_REPORT.md).</li>
+<li><strong>Independent reference implementation</strong> - <code>reference_impl/simple_valuation.py</code> (plain loops, no shared code, a
+   different reverse-DCF formulation and a different IRR algorithm) agrees with the engine on hundreds of random cases.</li>
+<li><strong>Live integrity checks</strong> in the app with their numbers (tie-outs, residuals, sensitivity centre, weights, units).</li>
+<li><strong>Edge-case tests</strong> - terminal growth ≥ WACC, no-solution reverse DCF, units, zero dividends, negative / zero margins,
+   missing data.</li>
+<li><code>VERIFICATION_REPORT.md</code> - generated by one command, regenerated by CI on every push.</li>
+</ol><p class="meta">Source: <a href="../docs/methodology.md">docs/methodology.md</a></p></section><section id="provenance"><h1 id="provenance-data-provenance">Data provenance</h1>
+<p>Every input shows one source tag:</p>
+<table>
+<thead>
+<tr>
+<th>Tag</th>
+<th>Meaning</th>
+<th>What is shown</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Fetched</strong></td>
+<td>Taken directly from a data provider</td>
+<td>provider, endpoint, field / XBRL tag, fetch timestamp, filing period end, link to the document</td>
+</tr>
+<tr>
+<td><strong>Derived</strong></td>
+<td>Calculated from other inputs</td>
+<td>the formula and its inputs</td>
+</tr>
+<tr>
+<td><strong>Assumption</strong></td>
+<td>A default chosen by the model</td>
+<td>the value and why it was chosen (see assumptions.md)</td>
+</tr>
+<tr>
+<td><strong>Analyst override</strong></td>
+<td>You typed a different value</td>
+<td>flagged in the Inputs table, with the original automatic value still shown</td>
+</tr>
+<tr>
+<td><strong>Missing</strong></td>
+<td>The provider did not report it</td>
+<td>blank and flagged; never filled with a guess</td>
+</tr>
+</tbody>
+</table>
+<h2 id="provenance-snapshots">Snapshots</h2>
+<p><code>data_snapshots/&lt;TICKER&gt;_&lt;YYYYMMDDTHHMMSS&gt;.json</code> holds the raw provider responses for one live fetch:</p>
+<ul>
+<li><code>tickers</code> - the matching row of https://www.sec.gov/files/company_tickers.json</li>
+<li><code>submissions</code> - https://data.sec.gov/submissions/CIK##########.json</li>
+<li><code>companyfacts</code> - https://data.sec.gov/api/xbrl/companyfacts/CIK##########.json</li>
+<li><code>index_&lt;accession&gt;</code> - the earnings 8-K's filing index (to find Exhibit 99.1)</li>
+<li><code>market</code> - the values read from yfinance (price, beta, rf, consensus growth) with their as-of time</li>
+<li><code>_meta</code> - fetch time, the exact request URLs, and the yfinance attribute behind each market field</li>
+</ul>
+<p><code>data_snapshots/reference/</code> holds the committed snapshots used by the tests:</p>
+<ul>
+<li><code>DDOG_2026-11-22T2117_transcribed.json</code> - real DDOG figures, transcribed (see its <code>_meta.provenance</code>)</li>
+<li><code>SMPL_synthetic_profit.json</code>, <code>SMPL_synthetic_loss.json</code> - invented numbers that exercise code paths, labelled synthetic
+  everywhere they appear</li>
+</ul>
+<h2 id="provenance-checking-a-number-by-hand">Checking a number by hand</h2>
+<ol>
+<li>Open the Inputs tab and expand the field.</li>
+<li>Click the filing link (10-Q / 10-K / 8-K Exhibit 99.1) and search for the line item, e.g. "Total revenue".</li>
+<li>For TTM figures, the tag lists the three parts (latest FY, current YTD, prior-year YTD) and their periods.</li>
+</ol><p class="meta">Source: <a href="../docs/data_provenance.md">docs/data_provenance.md</a></p></section><section id="limitations"><h1 id="limitations-limitations">Limitations</h1>
+<ul>
+<li><strong>Educational, not investment advice.</strong> The model is a structured way to state and test assumptions; its output is
+  only as good as those assumptions.</li>
+<li><strong>Market data is third-party.</strong> Price, beta, the 10-year Treasury yield and analyst consensus come from Yahoo Finance via
+  the unofficial <code>yfinance</code> library. They can be delayed, revised, missing, or differ from the exchange and from other
+  vendors. Nothing in an SEC filing can confirm them; the source tag links to the Yahoo page so you can compare.</li>
+<li><strong>XBRL coverage.</strong> The SEC <code>companyfacts</code> API holds only non-dimensional facts. Segment data, multi-class share counts on
+  the cover page and some company-specific tags are not available. A figure that is not found is left blank and flagged -
+  never guessed - and you can type it in from the linked filing.</li>
+<li><strong>US SEC registrants only.</strong> Foreign private issuers filing 20-F/40-F are partially supported by the parser; non-SEC
+  companies are not supported.</li>
+<li><strong>Non-GAAP is an approximation.</strong> The bridge adds back SBC, acquired-intangible amortization and an "other" figure you
+  type from the 8-K. Companies define non-GAAP differently; compare with Exhibit 99.1.</li>
+<li><strong>Model simplifications</strong> (all visible in the Assumptions register): one flat WACC; constant D&amp;A / capex / NWC ratios;
+  statutory tax with no NOL schedule; no explicit SBC cash cost under non-GAAP (dilution enters only through the share-count
+  drift); book value of debt; operating leases excluded by default.</li>
+<li><strong>Reverse DCF</strong> solves only for a constant growth rate between −50% and +150% a year; margins are not solved for.</li>
+<li><strong>IRR</strong> proxies gross profit and book value by scaling with revenue; P/E scales net income with NOPAT.</li>
+<li><strong>Thesis &amp; Scenarios tab</strong> (probability-weighted price target) exists in the workbook but is not mirrored in the app.</li>
+<li><strong>Excel parity is tested with LibreOffice</strong>, not Microsoft Excel. The two agree on all functions used here except one
+  documented IRR convergence case (see known_issues.md).</li>
+</ul><p class="meta">Source: <a href="../docs/limitations.md">docs/limitations.md</a></p></section><section id="known-issues"><h1 id="known-issues-known-issues">Known issues</h1>
+<h2 id="known-issues-engine-vs-spreadsheet-disagreements-all-of-them">Engine vs spreadsheet disagreements (all of them)</h2>
+<p>Measured by <code>tests/test_excel_parity.py</code> across every scenario; reproduced in VERIFICATION_REPORT.md.</p>
+<table>
+<thead>
+<tr>
+<th>Where</th>
+<th>Engine</th>
+<th>Spreadsheet (LibreOffice)</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DDOG GAAP, variant <code>irr_exit_override</code> (EV/EBITDA, exit 20x, 3 years, +1% shares/yr), <code>irr_IRR</code></td>
+<td>−45.35%</td>
+<td>error (shown "n/a")</td>
+<td>LibreOffice's IRR() does not converge from its 10% starting guess. The cash flows have no dividends, so the exact IRR is (exit ÷ price)^(1/3) − 1; the engine equals that and the workbook's own price-only CAGR cell. Not checked in Microsoft Excel.</td>
+</tr>
+</tbody>
+</table>
+<p>No other metric differs by more than 0.1% (most agree to ~1e-12).</p>
+<h2 id="known-issues-deliberate-behaviour-differences-not-numeric-disagreements">Deliberate behaviour differences (not numeric disagreements)</h2>
+<ul>
+<li><strong>Missing data: the engine is stricter than Excel.</strong> Where a reported figure is blank, some workbook formulas treat the
+  blank cell as zero (e.g. a missing D&amp;A gives D&amp;A% = 0). The engine instead marks the input <em>Missing</em> and computes
+  nothing until you type a value. The parity tests use complete data, so this never affects a compared number.</li>
+<li><strong>The app does not mirror the Thesis &amp; Scenarios tab.</strong> The downloaded workbook still contains it.</li>
+</ul>
+<h2 id="known-issues-data">Data</h2>
+<ul>
+<li><strong>DDOG reference snapshot is transcribed, not raw.</strong> Built from the Data &amp; Sources tab of a workbook generated live on
+  2026-11-22 21:17. Three filing dates of older filings are placeholders (marked in
+  <code>scripts/reconstruct_ddog_snapshot.py</code>); they only order restatements. Weighted-average <em>basic</em> shares were not
+  available, so that comparison line is blank.</li>
+<li><strong>The live fetch path was not exercised in the build environment</strong> (no internet). <code>valuation/data_sources.py</code> uses the
+  builder's parser and request logic (valuation/sec_data.py); the first live run should be checked against the filing links.</li>
+</ul>
+<h2 id="known-issues-owner-only-tests">Owner-only tests</h2>
+<ul>
+<li>The Excel builder is private. Excel parity, the defaults-match-builder test and the workbook download run only on the
+  owner's machine; in CI they are skipped and the committed VERIFICATION_REPORT.md is the record. The hosted app does not
+  offer .xlsx downloads.</li>
+</ul>
+<h2 id="known-issues-environment">Environment</h2>
+<ul>
+<li><code>streamlit</code> and <code>yfinance</code> were not installed in the build environment, so the Streamlit UI was not run there. The app's
+  logic lives in <code>valuation/</code> and is fully tested; <code>tests/test_app_smoke.py</code> runs Streamlit's AppTest when streamlit is
+  installed (CI installs it).</li>
+<li>Pinned versions of <code>streamlit</code> and <code>yfinance</code> in requirements.txt were chosen without being installable in the build
+  environment; if pip cannot find them, use the nearest available release and update the pin.</li>
+</ul><p class="meta">Source: <a href="../docs/known_issues.md">docs/known_issues.md</a></p></section><section id="deployment"><h1 id="deployment-deployment">Deployment</h1>
+<h2 id="deployment-github-pages-the-documentation-portal-not-the-app">GitHub Pages: the documentation portal (not the app)</h2>
+<p>GitHub Pages serves static files only (HTML, CSS, JavaScript). It hosts <code>site/index.html</code>, the documentation and
+verification portal (overview with headline results and live checks, verification report, worked example, formula
+registry, assumptions register, methodology, provenance, limitations, known issues). It cannot run the interactive app:
+the engine, the SEC/Yahoo data fetch, the workbook generator and Streamlit all need a Python server.</p>
+<p>Turn it on once: repository <strong>Settings → Pages → Source: GitHub Actions</strong>. Every push to <code>main</code> then runs the tests and
+verification, rebuilds <code>site/index.html</code> from the fresh report and publishes it. Optional: set a repository variable
+<code>APP_URL</code> (Settings → Secrets and variables → Actions → Variables) to the Streamlit app's address so the portal links to it.
+Build it locally with <code>python -m scripts.build_site</code> and open <code>site/index.html</code> in a browser.</p>
+<h2 id="deployment-what-needs-a-server">What needs a server</h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Needs a Python server?</th>
+<th>Needs internet egress?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Valuation engine, Logic, Assumptions, Checks pages</td>
+<td>yes</td>
+<td>no</td>
+</tr>
+<tr>
+<td>Live ticker fetch (SEC EDGAR + Yahoo Finance)</td>
+<td>yes</td>
+<td>yes (sec.gov, data.sec.gov, query*.finance.yahoo.com)</td>
+</tr>
+<tr>
+<td>Download .xlsx</td>
+<td>yes</td>
+<td>no</td>
+</tr>
+<tr>
+<td>Replaying a saved snapshot</td>
+<td>yes</td>
+<td>no</td>
+</tr>
+<tr>
+<td>Excel parity tests / verification report</td>
+<td>yes, plus LibreOffice</td>
+<td>no</td>
+</tr>
+</tbody>
+</table>
+<h2 id="deployment-option-1-streamlit-community-cloud-free">Option 1: Streamlit Community Cloud (free)</h2>
+<ol>
+<li>Push this repository to GitHub (public, or private with Community Cloud access granted).</li>
+<li>Go to https://share.streamlit.io → <strong>Create app</strong> → pick the repo, branch <code>main</code>, main file <code>app.py</code>.</li>
+<li>Under <strong>Advanced settings → Secrets</strong> add your SEC contact (the SEC requires a User-Agent with an email):
+   <code>toml
+   SEC_USER_AGENT = "Your Name you@example.com"</code>
+   The app reads it from <code>st.secrets</code> or the <code>SEC_USER_AGENT</code> environment variable. Nothing secret is committed.</li>
+<li>Deploy. Snapshots written on Community Cloud live on an ephemeral disk; download any you want to keep.</li>
+</ol>
+<h2 id="deployment-option-2-docker-on-any-host-render-fly-io-a-vm">Option 2: Docker on any host (Render, Fly.io, a VM)</h2>
+<pre><code class="language-dockerfile">FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+ENV SEC_USER_AGENT=&quot;Your Name you@example.com&quot;
+EXPOSE 8501
+CMD [&quot;streamlit&quot;, &quot;run&quot;, &quot;app.py&quot;, &quot;--server.port=8501&quot;, &quot;--server.address=0.0.0.0&quot;]
+</code></pre>
+<p>Set <code>SEC_USER_AGENT</code> as an environment variable in the host's dashboard rather than in the image. Mount a volume on
+<code>/app/data_snapshots</code> to keep fetched snapshots.</p>
+<h2 id="deployment-running-locally">Running locally</h2>
+<pre><code class="language-bash">pip install -r requirements.txt
+streamlit run app.py
+</code></pre><p class="meta">Source: <a href="../docs/deployment.md">docs/deployment.md</a></p></section><section id="changelog"><h1 id="changelog-changelog">Changelog</h1>
+<h2 id="changelog-0-2-0-2026-11-23">0.2.0 - 2026-11-23</h2>
+<ul>
+<li>Documentation and verification portal: <code>site/index.html</code> (self-contained, published to GitHub Pages by CI).</li>
+<li>The Excel builder is no longer included: it stays private with the owner. The SEC parser it shares with the app is
+  bundled as <code>valuation/sec_data.py</code>; Excel parity tests run owner-side only; the hosted app has no .xlsx download.</li>
+<li>License changed to all rights reserved.</li>
+</ul>
+<h2 id="changelog-0-1-0-2026-11-22">0.1.0 - 2026-11-22</h2>
+<ul>
+<li>First release of the auditable app around the existing Excel builder (vendored unchanged, byte-checked).</li>
+<li>Python engine (WACC, forecast modes, DCF, sensitivity, value over time, reverse DCF, IRR) with Excel parity tests.</li>
+<li>Independent reference implementation and agreement tests.</li>
+<li>Formula registry, assumptions register, generated docs and worked example.</li>
+<li>Data provenance tags and raw-fetch snapshots.</li>
+<li>Streamlit app with Inputs / DCF / Reverse DCF / IRR / Logic / Assumptions / Checks / Download tabs.</li>
+<li>Verification report script and GitHub Actions workflow.</li>
+</ul><p class="meta">Source: <a href="../docs/changelog.md">docs/changelog.md</a></p></section></main><script>
+const secs=[...document.querySelectorAll('section')],links=[...document.querySelectorAll('nav a[data-s]')];
+function show(id){let sec=secs.find(s=>id&&(s.id===id||id.startsWith(s.id+'-')))||secs[0];secs.forEach(s=>s.classList.toggle('on',s===sec));
+links.forEach(a=>a.classList.toggle('on',a.dataset.s===sec.id));const el=document.getElementById(id);
+if(el&&el!==sec)el.scrollIntoView();else window.scrollTo(0,0);}
+window.addEventListener('hashchange',()=>show(location.hash.slice(1)));show(location.hash.slice(1));
+const q=document.getElementById('q');q.addEventListener('input',()=>{const v=q.value.trim().toLowerCase();
+links.forEach(a=>{const s=document.getElementById(a.dataset.s);a.style.display=!v||s.textContent.toLowerCase().includes(v)?'':'none';});});
+</script></body></html>

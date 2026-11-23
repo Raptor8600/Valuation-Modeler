@@ -1,0 +1,557 @@
+# FORMULA REGISTRY - the single list of every calculation.
+# The Logic page, the "show your work" panels, docs/formulas.md and docs/worked_example.md are generated from this
+# file; tests/test_registry.py fails if an entry points at a Python function, a test or an Excel cell that does not
+# exist, and tests/test_docs_fresh.py fails if the generated docs are out of date.
+#
+# Fields
+#   id        stable identifier                      formula   plain math notation
+#   explain   plain-English logic                    inputs    names of the inputs (workbook defined names)
+#   units     units of the result                    excel     where the same logic lives in the workbook:
+#             {sheet, name} (defined name) or {sheet, label, cols} (row found by its label in column A)
+#   python    function implementing it               reference function in the independent implementation
+#   tests     tests that verify it (file::function)  show      template rendered with the user's numbers
+#   when      only applies under these settings (optional)
+#   kind      fact | formula | judgment  (sourced fact, formula, or judgment call)
+
+formulas:
+# ------------------------------------------------------------------------------------------------ DATA
+- id: data.ttm
+  name: Trailing-twelve-month (TTM) figure
+  group: Data
+  kind: formula
+  formula: "TTM = latest fiscal year + current year-to-date − prior-year year-to-date"
+  explain: "Builds a full-year figure ending at the latest quarter from three reported periods. Falls back to the sum of the last four quarters when the YTD pieces are not tagged."
+  inputs: [XBRL duration facts]
+  units: "$M"
+  excel: {sheet: "Data & Sources", label: "Revenue", cols: "C:F"}
+  python: valuation/sec_data.py::Facts._ttm_from
+  reference: "(parsed once by valuation/sec_data.py; both implementations consume its output)"
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics, tests/test_provenance.py::test_ttm_parts_shown]
+  show: "Revenue TTM = {d_revenue:m3} (see the source tag for the three parts and their filings)"
+- id: data.nongaap_adj
+  name: Non-GAAP adjustments
+  group: Data
+  kind: judgment
+  formula: "Adj = [Basis = Non-GAAP] × (SBC·s₁ + acquired-intangible amortization·s₂ + other·s₃),  sᵢ ∈ {0,1}"
+  explain: "Under Non-GAAP the selected adjustments are added back to GAAP operating income. Each has a Y/N switch (Data & Sources §4). Zero under GAAP."
+  inputs: [d_sbc, d_amort, other adjustments, in_Basis]
+  units: "$M"
+  excel: {sheet: "Data & Sources", name: d_NonGAAPAdj}
+  python: valuation.company.CompanyData.derive
+  reference: reference_impl.simple_valuation.resolve
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "Adjustments = {d_NonGAAPAdj:m3} ({in_Basis:raw} basis)"
+- id: data.ebit_margin
+  name: Operating margin on the selected basis
+  group: Data
+  kind: formula
+  formula: "m₀ = (GAAP operating income + Adj) ÷ Revenue_TTM"
+  explain: "Starting margin of the forecast."
+  inputs: [d_ebit, d_NonGAAPAdj, d_revenue]
+  units: "decimal"
+  excel: {sheet: "Data & Sources", name: d_EBITMargin}
+  python: valuation.company.CompanyData.derive
+  reference: reference_impl.simple_valuation.resolve
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "m₀ = ({d_ebit:m3} + {d_NonGAAPAdj:m3}) ÷ {d_revenue:m3} = {d_EBITMargin:pct3}"
+- id: data.da_used
+  name: D&A used in the cash-flow build
+  group: Data
+  kind: formula
+  formula: "D&A_used = D&A(cash-flow statement) − [Non-GAAP and amortization added back] × acquired-intangible amortization"
+  explain: "Prevents adding amortization back twice (once in non-GAAP EBIT, once as D&A)."
+  inputs: [d_da, d_amort]
+  units: "$M"
+  excel: {sheet: "Data & Sources", name: d_DA_UFCF}
+  python: valuation.company.CompanyData.derive
+  reference: reference_impl.simple_valuation.resolve
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "D&A used = {d_da:m3} − amortization adjustment = {d_DA_UFCF:m3}"
+- id: data.capex
+  name: Capital expenditure used
+  group: Data
+  kind: formula
+  formula: "Capex = purchases of PP&E + [switch] × capitalized software"
+  explain: "Cash invested in fixed assets and capitalized software."
+  inputs: [d_capex_ppe, d_capex_sw]
+  units: "$M"
+  excel: {sheet: "Data & Sources", name: d_Capex}
+  python: valuation.company.CompanyData.derive
+  reference: reference_impl.simple_valuation.resolve
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "Capex = {d_capex_ppe:m3} + {d_capex_sw:m3} = {d_Capex:m3}"
+- id: data.nwc_resid
+  name: Working-capital & other operating cash items (residual)
+  group: Data
+  kind: formula
+  formula: "Residual = OCF − net income − D&A − SBC"
+  explain: "Everything in operating cash flow that is not earnings or a major non-cash charge; positive = cash inflow (e.g. growing deferred revenue)."
+  inputs: [d_ocf, d_net_income, d_da, d_sbc]
+  units: "$M"
+  excel: {sheet: "Data & Sources", name: d_NWCResid}
+  python: valuation.company.CompanyData.derive
+  reference: reference_impl.simple_valuation.resolve
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "Residual = {d_ocf:m3} − {d_net_income:m3} − {d_da:m3} − {d_sbc:m3} = {d_NWCResid:m3}"
+- id: data.net_cash
+  name: Net cash
+  group: Data
+  kind: formula
+  formula: "Net cash = cash & investments counted − debt counted − other claims"
+  explain: "Balance-sheet items switched Y on Data & Sources §5; operating leases and long-term securities are off by default."
+  inputs: [in_Cash, in_Debt, in_Other]
+  units: "$M"
+  excel: {sheet: "Start Here & Guide", name: in_NetCash}
+  python: valuation.engine.resolve_inputs
+  reference: reference_impl.simple_valuation.resolve
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "Net cash = {in_Cash:m3} − {in_Debt:m3} − {in_Other:m3} = {in_NetCash:m3}"
+# ------------------------------------------------------------------------------------------------ DEFAULTS
+- id: defaults.g1
+  name: Year-1 revenue growth (default)
+  group: Defaults
+  kind: judgment
+  formula: "g₁ = analyst consensus next-FY revenue growth, else TTM revenue growth"
+  explain: "Starting growth of the fade. Consensus comes from Yahoo Finance; override it with your own view."
+  inputs: [d_Cons1y, d_RevGrowth]
+  units: "decimal"
+  excel: {sheet: "Start Here & Guide", name: in_G1}
+  python: valuation.engine.resolve_inputs
+  reference: reference_impl.simple_valuation.resolve
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "g₁ = {in_G1:pct2}"
+- id: defaults.ratios
+  name: D&A, capex and working-capital ratios (defaults)
+  group: Defaults
+  kind: formula
+  formula: "D&A% = D&A_used ÷ Rev_TTM;  Capex% = Capex ÷ Rev_TTM;  NWC% = Residual ÷ ΔRev (incremental) or ÷ Rev_TTM (flat)"
+  explain: "Today's reported ratios carried into every forecast year unless overridden."
+  inputs: [d_DA_UFCF, d_Capex, d_NWCResid, d_revenue, d_dRev]
+  units: "decimal"
+  excel: {sheet: "Start Here & Guide", name: in_NWCPct}
+  python: valuation.engine.resolve_inputs
+  reference: reference_impl.simple_valuation.resolve
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "D&A% = {in_DAPct:pct3}; Capex% = {in_CapexPct:pct3}; NWC% = {in_NWCPct:pct3}"
+# ------------------------------------------------------------------------------------------------ WACC
+- id: wacc.ke
+  name: Cost of equity (CAPM)
+  group: WACC
+  kind: formula
+  formula: "Ke = Rf + β × ERP"
+  explain: "Return shareholders require: the risk-free rate plus beta times the equity risk premium."
+  inputs: [in_Rf, in_Beta, in_ERP]
+  units: "decimal"
+  excel: {sheet: "DCF Model", name: in_Ke}
+  python: valuation.engine.compute_wacc
+  reference: reference_impl.simple_valuation.resolve
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics, tests/test_showwork.py::test_wacc_substitution]
+  show: "Cost of equity = Rf + Beta × ERP = {in_Rf:pct2} + {in_Beta:num2} × {in_ERP:pct2} = {in_Ke:pct2}"
+- id: wacc.kd
+  name: Pre-tax cost of debt (default)
+  group: WACC
+  kind: judgment
+  formula: "Kd = interest expense ÷ debt if that exceeds Rf and debt > 0, else Rf + 1.5%"
+  explain: "Uses the company's own interest burden when meaningful; low-coupon convertibles fall back to Rf + 1.5%."
+  inputs: [d_interest, in_Debt, in_Rf]
+  units: "decimal"
+  excel: {sheet: "DCF Model", name: in_Kd}
+  python: valuation.engine.resolve_inputs
+  reference: reference_impl.simple_valuation.resolve
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "Kd = {in_Kd:pct2} (interest {d_interest:m3} ÷ debt {in_Debt:m3} vs Rf {in_Rf:pct2}); after tax: {in_Kd:pct2} × (1 − {in_TaxRate:pct1}) = {in_KdAT:pct3}"
+- id: wacc.weights
+  name: Capital weights
+  group: WACC
+  kind: formula
+  formula: "We = P·N ÷ (P·N + D);  Wd = 1 − We"
+  explain: "Market value of equity versus book value of debt."
+  inputs: [in_Price, in_Shares, in_Debt]
+  units: "decimal"
+  excel: {sheet: "DCF Model", name: in_We}
+  python: valuation.engine.compute_wacc
+  reference: reference_impl.simple_valuation.resolve
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics, tests/test_checks.py::test_checks_pass_on_ddog]
+  show: "We = {in_Price:px} × {in_Shares:num3}M ÷ ({in_Price:px} × {in_Shares:num3}M + {in_Debt:m3}) = {in_We:pct3}; Wd = {in_Wd:pct3}"
+- id: wacc.capm
+  name: WACC (CAPM build-up)
+  group: WACC
+  kind: formula
+  formula: "WACC = We × Ke + Wd × Kd × (1 − t)"
+  explain: "Blended required return of all capital providers."
+  inputs: [in_We, in_Ke, in_Wd, in_Kd, in_TaxRate]
+  units: "decimal"
+  excel: {sheet: "DCF Model", name: in_WACC_CAPM}
+  python: valuation.engine.compute_wacc
+  reference: reference_impl.simple_valuation.resolve
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "WACC(CAPM) = {in_We:pct3} × {in_Ke:pct3} + {in_Wd:pct3} × {in_KdAT:pct3} = {in_WACC_CAPM:pct4}"
+- id: wacc.active
+  name: Active discount rate
+  group: WACC
+  kind: judgment
+  formula: "WACC = direct input (Standard mode; default ROUND(CAPM WACC, 3)) or CAPM WACC (Advanced mode)"
+  explain: "One flat rate for every year (no term structure)."
+  inputs: [in_WACCMode, in_WACC_Direct, in_WACC_CAPM]
+  units: "decimal"
+  excel: {sheet: "DCF Model", name: in_WACC}
+  python: valuation.engine.resolve_inputs
+  reference: reference_impl.simple_valuation.resolve
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics, tests/test_edge_cases.py::test_excel_round_half_away_from_zero]
+  show: "Active WACC ({in_WACCMode:raw}) = {in_WACC:pct2}   [CAPM {in_WACC_CAPM:pct4} rounded to 3 dp = {in_WACC_Direct:pct2}]"
+# ------------------------------------------------------------------------------------------------ FORECAST
+- id: fc.auto
+  name: Automatic fade (growth and margin paths)
+  group: Forecast
+  kind: judgment
+  formula: "g_t = g₁ + (g∞ − g₁)·(t − 1)/9;   m_t = m₀ + (m* − m₀)·min(t / T*, 1)"
+  explain: "Growth falls in a straight line from Year-1 growth to terminal growth by Year 10; margin moves in a straight line to the target margin by the target year, then holds."
+  inputs: [in_G1, in_TermG, in_EBITM0, in_MarginTarget, in_MarginYear]
+  units: "decimal"
+  excel: {sheet: "Forecast Builder", name: fc_Growth}
+  python: valuation.engine.forecast
+  reference: reference_impl.simple_valuation.growth_and_margin
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics, tests/test_reference_agreement.py::test_dcf_agrees]
+  show: "g₁ = {y1_growth:pct2} → g₁₀ = {y10_growth:pct2}; m₁ = {y1_margin:pct2} → m₁₀ = {y10_margin:pct2}"
+- id: fc.scenarios
+  name: Bear / Base / Bull scenario paths
+  group: Forecast
+  kind: judgment
+  formula: "Bear: g_t − 5pp·(10 − t)/9, m_t − 3pp·min(t/T*,1);   Bull: +5pp / +3pp;   Base = automatic fade (every cell editable)"
+  explain: "Default scenario rows; select with Forecast Mode = Scenario."
+  inputs: [fc_Mode, fc_Scenario]
+  units: "decimal"
+  excel: {sheet: "Forecast Builder", name: fc_BearG}
+  python: valuation.engine.forecast
+  reference: reference_impl.simple_valuation.growth_and_margin
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "Mode {fc_Mode:raw}, scenario {fc_Scenario:raw}"
+# ------------------------------------------------------------------------------------------------ DCF
+- id: dcf.revenue
+  name: Revenue
+  group: DCF
+  kind: formula
+  formula: "Rev_t = Rev_{t−1} × (1 + g_t),  Rev₀ = TTM revenue;  Year 11 uses g∞"
+  explain: "Compounds TTM revenue along the selected growth path."
+  inputs: [in_Rev0, fc_Growth]
+  units: "$M"
+  excel: {sheet: "DCF Model", name: dcf_rev}
+  python: valuation.engine.schedule
+  reference: reference_impl.simple_valuation.build_years
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics, tests/test_reference_agreement.py::test_dcf_agrees]
+  show: "Rev₁ = {y0_rev:m3} × (1 + {y1_growth:pct3}) = {y1_rev:m3}"
+- id: dcf.nopat
+  name: EBIT, taxes and NOPAT
+  group: DCF
+  kind: formula
+  formula: "EBIT_t = Rev_t × m_t;  Tax_t = t × max(EBIT_t, 0) [no benefit on losses] or t × EBIT_t [tax credit];  NOPAT_t = EBIT_t − Tax_t"
+  explain: "Unlevered after-tax operating profit. By default losses get no tax credit."
+  inputs: [in_TaxRate, in_LossTax]
+  units: "$M"
+  excel: {sheet: "DCF Model", label: "NOPAT ($M)", cols: "B:L"}
+  python: valuation.engine.schedule
+  reference: reference_impl.simple_valuation.one_year
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics, tests/test_edge_cases.py::test_negative_margins_pay_no_tax]
+  show: "Year 1: EBIT {y1_rev:m3} × {y1_margin:pct3} = {y1_ebit:m3}; tax {in_TaxRate:pct1} × {y1_taxable:m3} = {y1_tax_abs:m3}; NOPAT = {y1_nopat:m3}"
+- id: dcf.ufcf
+  name: Unlevered free cash flow
+  group: DCF
+  kind: formula
+  formula: "UFCF_t = NOPAT_t + Rev_t·D&A% − Rev_t·Capex% + NWC_t,   NWC_t = NWC%·(Rev_t − Rev_{t−1}) [incremental] or NWC%·Rev_t [flat]"
+  explain: "Cash the operations generate for all capital providers."
+  inputs: [in_DAPct, in_CapexPct, in_NWCPct, in_NWCMethod]
+  units: "$M"
+  excel: {sheet: "DCF Model", name: dcf_ufcf}
+  python: valuation.engine.schedule
+  reference: reference_impl.simple_valuation.one_year
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics, tests/test_reference_agreement.py::test_dcf_agrees]
+  show: "Year 1: UFCF = {y1_nopat:m3} + {y1_da:m3} − {y1_capex_abs:m3} + {y1_nwc:m3} = {y1_ufcf:m3}"
+- id: dcf.pv
+  name: Discounting and NPV of Years 1-10
+  group: DCF
+  kind: formula
+  formula: "PV_t = UFCF_t ÷ (1 + WACC)^(t − ½·mid);   NPV₁₋₁₀ = Σ PV_t"
+  explain: "End-of-year discounting by default; mid-year moves each cash flow half a year earlier."
+  inputs: [in_WACC, in_Timing]
+  units: "$M"
+  excel: {sheet: "DCF Model", name: dcf_SumPV}
+  python: valuation.engine.dcf
+  reference: reference_impl.simple_valuation.enterprise_value
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics, tests/test_checks.py::test_checks_pass_on_ddog]
+  show: "PV₁ = {y1_ufcf:m3} ÷ (1 + {in_WACC:pct2})^{y1_per:num2} = {y1_pv:m3};  Σ PV₁₋₁₀ = {dcf_SumPV:m3}  (Excel NPV cross-check {dcf_NPVCheck:m3})"
+- id: dcf.tv_perpetuity
+  name: Terminal value - Gordon growth
+  group: DCF
+  kind: formula
+  when: {in_TVMethod: "Perpetuity (Gordon Growth)"}
+  formula: "TV = UFCF₁₁ ÷ (WACC − g∞),  UFCF₁₁ built explicitly from Rev₁₁ = Rev₁₀(1 + g∞) at the Year-10 margin;  undefined if WACC ≤ g∞"
+  explain: "Value at Year 10 of all cash flows after Year 10, growing forever at g∞. Year 11 is a normalised year with its own working-capital charge."
+  inputs: [in_TermG, in_WACC]
+  units: "$M"
+  excel: {sheet: "DCF Model", name: dcf_TV}
+  python: valuation.engine.terminal_value
+  reference: reference_impl.simple_valuation.enterprise_value
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics, tests/test_edge_cases.py::test_terminal_growth_at_or_above_wacc]
+  show: "TV = {y11_ufcf:m3} ÷ ({in_WACC:pct2} − {in_TermG:pct2}) = {dcf_TV:m3}"
+- id: dcf.tv_exit
+  name: Terminal value - exit multiple
+  group: DCF
+  kind: judgment
+  when: {in_TVMethod: "Exit Multiple"}
+  formula: "TV = exit multiple × Year-10 metric (EBITDA, UFCF or revenue)"
+  explain: "Sale of the business at the end of Year 10 at a market multiple."
+  inputs: [in_ExitMult, in_ExitMetric]
+  units: "$M"
+  excel: {sheet: "DCF Model", name: dcf_TV}
+  python: valuation.engine.terminal_value
+  reference: reference_impl.simple_valuation.enterprise_value
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "TV = {in_ExitMult:x1} × Year-10 {in_ExitMetric:raw} {exit_metric_value:m3} = {dcf_TV:m3}"
+- id: dcf.pv_tv
+  name: Present value of terminal value
+  group: DCF
+  kind: formula
+  formula: "PV(TV) = TV ÷ (1 + WACC)^N,  N = 10 − ½·mid (perpetuity) or 10 (exit multiple)"
+  explain: "A perpetuity follows the cash-flow timing convention; an exit is a sale at the end of Year 10."
+  inputs: [dcf_TV, in_WACC]
+  units: "$M"
+  excel: {sheet: "DCF Model", name: dcf_PVTV}
+  python: valuation.engine.dcf
+  reference: reference_impl.simple_valuation.enterprise_value
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "PV(TV) = {dcf_TV:m3} ÷ (1 + {in_WACC:pct2})^{dcf_TVPer:num2} = {dcf_PVTV:m3}  ({dcf_TVShare:pct1} of EV)"
+- id: dcf.ev
+  name: Enterprise value
+  group: DCF
+  kind: formula
+  formula: "EV = NPV₁₋₁₀ + PV(TV)"
+  explain: "Value of the operations."
+  inputs: [dcf_SumPV, dcf_PVTV]
+  units: "$M"
+  excel: {sheet: "DCF Model", name: dcf_EV}
+  python: valuation.engine.dcf
+  reference: reference_impl.simple_valuation.enterprise_value
+  tests: [tests/test_excel_parity.py::test_ddog_headline_parity]
+  show: "EV = {dcf_SumPV:m3} + {dcf_PVTV:m3} = {dcf_EV:m3}"
+- id: dcf.equity
+  name: Equity value
+  group: DCF
+  kind: formula
+  formula: "Equity = EV + cash − debt − other claims"
+  explain: "Enterprise-to-equity bridge."
+  inputs: [dcf_EV, in_NetCash]
+  units: "$M"
+  excel: {sheet: "DCF Model", name: dcf_Equity}
+  python: valuation.engine.dcf
+  reference: reference_impl.simple_valuation.dcf
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "Equity = {dcf_EV:m3} + {in_Cash:m3} − {in_Debt:m3} − {in_Other:m3} = {dcf_Equity:m3}"
+- id: dcf.fair_value
+  name: Fair value per share
+  group: DCF
+  kind: formula
+  formula: "Fair value = Equity ÷ diluted shares;  Upside = fair value ÷ price − 1"
+  explain: "Intrinsic value per diluted share."
+  inputs: [dcf_Equity, in_Shares, in_Price]
+  units: "$/share"
+  excel: {sheet: "DCF Model", name: dcf_FV}
+  python: valuation.engine.dcf
+  reference: reference_impl.simple_valuation.dcf
+  tests: [tests/test_excel_parity.py::test_ddog_headline_parity, tests/test_reference_agreement.py::test_dcf_agrees]
+  show: "Fair value = {dcf_Equity:m3} ÷ {in_Shares:num3}M = {dcf_FV:px}  ({dcf_Upside:pct1} vs {in_Price:px})"
+- id: dcf.cross_checks
+  name: Implied exit multiple and implied perpetual growth
+  group: DCF
+  kind: formula
+  formula: "Implied EV/EBITDA = TV ÷ EBITDA₁₀;   implied g ≈ (TV·WACC − UFCF₁₀) ÷ (TV + UFCF₁₀)"
+  explain: "Translate whichever terminal method you used into the other method's terms."
+  inputs: [dcf_TV, in_WACC]
+  units: "x / decimal"
+  excel: {sheet: "DCF Model", name: dcf_ImpMult}
+  python: valuation.engine.dcf
+  reference: "(not re-implemented: pure arithmetic on checked values)"
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "Implied EV/EBITDA = {dcf_TV:m3} ÷ {y10_ebitda:m3} = {dcf_ImpMult:x1}; implied g ≈ {dcf_ImpG:pct2}"
+- id: dcf.sensitivity
+  name: Sensitivity table (fair value per share)
+  group: DCF
+  kind: formula
+  formula: "Cell(i,j) = [Σ UFCF_t (1+w_i)^−per_t + PV_TV(w_i, p_j) + net cash] ÷ shares;  w_i = WACC + 0.5pp·i, p_j = g∞ + 0.5pp·j (or multiple + 2.5x·j), i,j ∈ −3..3"
+  explain: "Years 1-10 stay fixed; for perpetuity the Year-11 cash flow is rebuilt at each column's growth rate. The centre cell equals the base fair value (checked)."
+  inputs: [in_WACC, in_TermG, in_ExitMult]
+  units: "$/share"
+  excel: {sheet: "DCF Model", name: dcf_SensCentre}
+  python: valuation.engine.dcf_sensitivity
+  reference: reference_impl.simple_valuation.dcf
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics, tests/test_reference_agreement.py::test_dcf_agrees]
+  show: "Centre cell {dcf_SensCentre:px} = base fair value {dcf_FV:px}"
+- id: dcf.value_over_time
+  name: Value of the company and the share at the end of each year
+  group: DCF
+  kind: formula
+  formula: "EV_t = Σ_{k>t} UFCF_k ÷ (1+WACC)^(per_k − t) + TV ÷ (1+WACC)^(N − t);  Cash_t = net cash + Σ_{k≤t} UFCF_k (if retained);  Price_t = (EV_t + Cash_t) ÷ (shares × (1 + Δshares)^t)"
+  explain: "What the model says the stock is worth in t years if the forecast is delivered. Holding at fair value earns about the WACC."
+  inputs: [dcf_ufcf, dcf_TV, in_CashRetain, in_ShareChg]
+  units: "$/share"
+  excel: {sheet: "DCF Model", name: dcf_PxPath}
+  python: valuation.engine.value_over_time
+  reference: "(checked against Excel only)"
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics, tests/test_checks.py::test_checks_pass_on_ddog]
+  show: "Year 5: EV {vot5_ev:m1} + cash {vot5_net_cash:m1} = {vot5_equity:m1} ÷ {vot5_shares:num2}M shares = {vot5_price:px} ({vot5_ann_return:pct1}/yr from today's price)"
+# ------------------------------------------------------------------------------------------------ REVERSE DCF
+- id: rdcf.target
+  name: Market enterprise value (the target)
+  group: Reverse DCF
+  kind: formula
+  formula: "Market EV = price × diluted shares − net cash"
+  explain: "What the market pays for the operations today."
+  inputs: [in_Price, in_Shares, in_NetCash]
+  units: "$M"
+  excel: {sheet: "Reverse DCF", name: rd_Target}
+  python: valuation.engine.reverse_dcf
+  reference: reference_impl.simple_valuation.reverse_dcf
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "Market EV = {in_Price:px} × {in_Shares:num3}M − {in_NetCash:m3} = {rd_Target:m3}"
+- id: rdcf.ev_of_g
+  name: Model EV as a function of constant growth g
+  group: Reverse DCF
+  kind: formula
+  formula: "EV(g) = Rev₀ Σ_{t=1..10} (1+g)^t [a_t + b·g/(1+g)] (1+WACC)^−P_t + TV(g)·(1+WACC)^−N;   a_t = m_t − t·max(m_t,0) + D&A% − Capex% [+ NWC% if flat];  b = NWC% if incremental"
+  explain: "Same mechanics as the DCF Model with one unknown: a constant revenue growth rate for Years 1-10. Margins follow the forecast path or stay at TTM."
+  inputs: [rd_MarginSrc, in_WACC, in_TermG]
+  units: "$M"
+  excel: {sheet: "Reverse DCF", name: rd_A}
+  python: valuation.engine.rdcf_ev
+  reference: reference_impl.simple_valuation.reverse_dcf
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics, tests/test_reference_agreement.py::test_reverse_dcf_agrees]
+  show: "a₁ = {rd_a1:num4}, a₁₁ = {rd_a11:num4}, b = {rd_b:num4} (cash-flow coefficients per $1 of revenue)"
+- id: rdcf.solve
+  name: Solving for the implied growth (grid scan + bisection)
+  group: Reverse DCF
+  kind: formula
+  formula: "Scan g = −50%, −49%, …, +150%; take the first bracket where EV(g) − market EV changes sign; halve the bracket 40 times; g* = midpoint of the 40th bracket.  No sign change ⇒ 'No solution in range'"
+  explain: "A macro-free root finder that Excel can run. Multiple sign changes are reported; the lowest root is shown."
+  inputs: [rd_Target]
+  units: "decimal"
+  excel: {sheet: "Reverse DCF", name: rd_G}
+  python: valuation.engine.reverse_dcf
+  reference: reference_impl.simple_valuation.reverse_dcf
+  tests: [tests/test_excel_parity.py::test_ddog_headline_parity, tests/test_edge_cases.py::test_reverse_dcf_no_solution]
+  show: "First bracket [{rd_lo0:pct1}, {rd_hi0:pct1}] (f = {rd_flo0:m1} → {rd_fhi0:m1}); after 40 halvings width {rd_width:sci}; g* = {rd_Solution:raw}; sign changes {rd_Roots:int}"
+- id: rdcf.proof
+  name: Proof schedule and tie-out
+  group: Reverse DCF
+  kind: formula
+  formula: "Rebuild Years 1-11 at g*;  tie-out = Σ PV + PV(TV) − market EV ≈ 0"
+  explain: "The answer is only trusted if the full schedule at g* reproduces market EV."
+  inputs: [rd_G]
+  units: "$M"
+  excel: {sheet: "Reverse DCF", name: rd_TieOut}
+  python: valuation.engine.reverse_dcf
+  reference: reference_impl.simple_valuation.reverse_dcf
+  tests: [tests/test_checks.py::test_checks_pass_on_ddog, tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "Σ PV {rd_SumPV:m3} + PV(TV) {rd_PVTV:m3} = {rd_EV:m3} vs market EV {rd_Target:m3}: tie-out {rd_TieOut:sci} $M"
+- id: rdcf.gap
+  name: Expectation gap
+  group: Reverse DCF
+  kind: formula
+  formula: "Gap = g* − your forecast's 10-year revenue CAGR,  CAGR = (Rev₁₀ ÷ Rev₀)^(1/10) − 1"
+  explain: "Positive = the market expects more growth than your forecast."
+  inputs: [rd_G, dcf_rev]
+  units: "decimal"
+  excel: {sheet: "Reverse DCF", name: rd_Gap}
+  python: valuation.engine.reverse_dcf
+  reference: "(arithmetic on checked values)"
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "Gap = {rd_G:pct2} − {rd_FcCAGR:pct2} = {rd_Gap:pct2}"
+# ------------------------------------------------------------------------------------------------ IRR
+- id: irr.metric_path
+  name: Metric path for the chosen multiple
+  group: IRR
+  kind: formula
+  formula: "Metric_t = DCF line at Year t (trailing) or t+1 (forward); EPS scales net income on the selected basis by NOPAT_t ÷ NOPAT₀ (revenue ratio if either is ≤ 0); gross profit and book value scale with revenue; DPS grows at the dividend growth rate"
+  explain: "Every IRR metric comes from the same forecast as the DCF."
+  inputs: [irr_Mult, irr_Basis, irr_GSrc, irr_GMan]
+  units: "$M / $ per share"
+  excel: {sheet: "IRR Analysis", name: irr_EntryPS}
+  python: valuation.engine.irr_analysis
+  reference: reference_impl.simple_valuation.irr
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics, tests/test_reference_agreement.py::test_irr_agrees]
+  show: "{irr_Mult:raw}: metric today {irr_Metric0:m3} → Year {irr_H:int} {irr_MetricH:m3}"
+- id: irr.entry_multiple
+  name: Entry multiple
+  group: IRR
+  kind: formula
+  formula: "P multiples: price ÷ metric/share;  EV multiples: (price − net cash/share) ÷ metric/share;  yields: metric/share ÷ price"
+  explain: "Computed from today's price so it always reconciles; not meaningful (n/m) when the metric is ≤ 0."
+  inputs: [in_Price, in_NetCashPS]
+  units: "x"
+  excel: {sheet: "IRR Analysis", name: irr_Entry}
+  python: valuation.engine.irr_analysis
+  reference: reference_impl.simple_valuation.irr
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "Entry {irr_Mult:raw} = {irr_Entry:num2} on metric/share {irr_EntryPS:px}"
+- id: irr.exit_price
+  name: Exit price
+  group: IRR
+  kind: formula
+  formula: "Exit price_H = exit multiple × metric/share_H [+ net cash/share_H for EV multiples];  yields: metric/share ÷ exit yield"
+  explain: "Exit multiple defaults to today's multiple (no re-rating). Net cash is held constant or grows with retained FCF less dividends."
+  inputs: [irr_Exit, irr_H, irr_Cash, irr_S]
+  units: "$/share"
+  excel: {sheet: "IRR Analysis", name: irr_ExitPx}
+  python: valuation.engine.irr_analysis
+  reference: reference_impl.simple_valuation.irr
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "Exit price = {irr_Exit:num2} × {irr_MetricH_PS:px} (+ net cash/share {irr_NCPS_H:px} if EV) = {irr_ExitPx:px}"
+- id: irr.irr
+  name: IRR (annualized return incl. dividends)
+  group: IRR
+  kind: formula
+  formula: "Find r with −P₀ + Σ_{t<H} DPS_t/(1+r)^t + (DPS_H + exit price_H)/(1+r)^H = 0"
+  explain: "Excel IRR() on per-share cash flows. Not meaningful when the exit price is ≤ 0 or the multiple is n/m."
+  inputs: [irr_ExitPx, in_Price, d_dps, irr_DG]
+  units: "decimal per year"
+  excel: {sheet: "IRR Analysis", name: irr_IRR}
+  python: valuation.engine.excel_irr
+  reference: reference_impl.simple_valuation.irr_bisect
+  tests: [tests/test_excel_parity.py::test_ddog_headline_parity, tests/test_edge_cases.py::test_zero_dividend_irr]
+  show: "Cash flows/share: [{irr_CF:raw}] → IRR = {irr_IRR:pct2} (price-only CAGR {irr_PxCAGR:pct2})"
+- id: irr.sensitivity
+  name: IRR sensitivity (entry × exit multiple)
+  group: IRR
+  kind: formula
+  formula: "Cell(i,j) = ((exit price(j) + cumulative dividends) ÷ entry price(i))^(1/H) − 1, multiples × 0.7…1.3"
+  explain: "Simple (not reinvested) annualized return; the centre equals the IRR when there are no dividends."
+  inputs: [irr_Entry, irr_Exit]
+  units: "decimal per year"
+  excel: {sheet: "IRR Analysis", name: irr_SensCentre}
+  python: valuation.engine.irr_analysis
+  reference: "(checked against Excel only)"
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "Centre {irr_SensCentre:pct2} vs simple return {irr_SimpleRet:pct2}"
+# ------------------------------------------------------------------------------------------------ OTHER
+- id: units.convert
+  name: Unit conversion
+  group: Units
+  kind: formula
+  formula: "$M = $K ÷ 1,000 = $B × 1,000"
+  explain: "The engine works in $ millions and millions of shares; per-share values are unit-free (checked live)."
+  inputs: []
+  units: "$M"
+  excel: {sheet: "Start Here & Guide", name: in_Cash}
+  python: valuation.units.to_millions
+  reference: "(n/a)"
+  tests: [tests/test_edge_cases.py::test_units_round_trip, tests/test_edge_cases.py::test_units_scale_invariance]
+  show: ""
+
+chains:
+  "Fair value per share": [data.ebit_margin, defaults.ratios, wacc.active, fc.auto, dcf.revenue, dcf.nopat, dcf.ufcf, dcf.pv, dcf.tv_perpetuity, dcf.tv_exit, dcf.pv_tv, dcf.ev, dcf.equity, dcf.fair_value]
+  "Enterprise value": [dcf.pv, dcf.tv_perpetuity, dcf.tv_exit, dcf.pv_tv, dcf.ev]
+  "WACC": [wacc.ke, wacc.kd, wacc.weights, wacc.capm, wacc.active]
+  "Terminal value": [dcf.tv_perpetuity, dcf.tv_exit, dcf.pv_tv, dcf.cross_checks]
+  "Value over time": [dcf.value_over_time]
+  "Sensitivity": [dcf.sensitivity]
+  "Implied growth (Reverse DCF)": [rdcf.target, rdcf.ev_of_g, rdcf.solve, rdcf.proof, rdcf.gap]
+  "IRR": [irr.metric_path, irr.entry_multiple, irr.exit_price, irr.irr, irr.sensitivity]
+  "Data bridge": [data.ttm, data.nongaap_adj, data.ebit_margin, data.da_used, data.capex, data.nwc_resid, data.net_cash, defaults.g1, defaults.ratios]

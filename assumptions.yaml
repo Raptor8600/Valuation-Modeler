@@ -1,0 +1,101 @@
+# ASSUMPTIONS REGISTER - every judgment call the model makes on your behalf.
+# The app's Assumptions page and docs/assumptions.md are generated from this file. For each entry the engine is
+# re-run with the alternative below and the change in fair value / implied growth is reported (real numbers, not
+# descriptions). `input` is a workbook defined name (numeric bump) or `setting` (alternative option).
+
+assumptions:
+- id: tax_rate
+  name: Marginal tax rate
+  input: in_TaxRate
+  default: "21% (US federal statutory)"
+  why: "Statutory rate on NOPAT; effective tax rates are distorted by stock-comp deductions and NOLs. The TTM effective rate is shown beside it for reference."
+  changes_it: "State taxes (often +2-5pp), large foreign operations, or a long NOL shield."
+  bump: 0.05
+- id: erp
+  name: Equity risk premium
+  input: in_ERP
+  default: "5.5%"
+  why: "Middle of the 4-6% range of published implied ERP estimates (e.g. Damodaran)."
+  changes_it: "Your house view of market risk pricing; only matters in CAPM mode or through the default direct WACC."
+  bump: 0.01
+- id: wacc
+  name: Discount rate (WACC), one flat rate for all years
+  input: in_WACC_Direct
+  default: "CAPM WACC rounded to 0.1%"
+  why: "A single rate is standard for a 10-year DCF; there is no term structure or changing capital mix."
+  changes_it: "Your hurdle rate, a changing leverage plan, or an industry beta."
+  bump: 0.01
+- id: terminal_growth
+  name: Terminal (perpetual) growth
+  input: in_TermG
+  default: "2.5%"
+  why: "Close to long-run nominal GDP growth; a business cannot outgrow the economy forever."
+  changes_it: "Inflation expectations, a structurally declining industry (lower), or a much longer high-growth runway (extend the forecast instead)."
+  bump: 0.005
+- id: exit_multiple
+  name: Exit multiple (exit-multiple method only)
+  input: in_ExitMult
+  default: "15x Year-10 EBITDA"
+  why: "A mature-company multiple; today's multiple is a poor anchor for a business ten years older."
+  changes_it: "Sector multiples for mature peers."
+  bump: 2.5
+  settings: {in_TVMethod: "Exit Multiple"}
+- id: growth_fade
+  name: Growth fade shape
+  input: in_G1
+  default: "Straight line from Year-1 growth (consensus) to terminal growth by Year 10"
+  why: "Simple, transparent and conservative for high-growth companies."
+  changes_it: "A visible multi-year backlog (hold growth longer: Manual Override) or a maturing market (faster fade). Sensitivity shown: Year-1 growth ±5pp."
+  bump: 0.05
+- id: margin_target
+  name: Target operating margin
+  input: in_MarginTarget
+  default: "= today's TTM margin (no operating leverage)"
+  why: "Neutral starting point: the model does not assume margin expansion unless you do."
+  changes_it: "Your view of margin at scale (software often 25-35%)."
+  bump: 0.05
+- id: capex
+  name: Capex intensity
+  input: in_CapexPct
+  default: "TTM capex ÷ TTM revenue"
+  why: "Today's reinvestment rate carried forward."
+  changes_it: "Planned data-centre build-outs, or a capex-light shift. Long-run capex should at least match D&A."
+  bump: 0.01
+- id: nwc
+  name: Working-capital intensity
+  input: in_NWCPct
+  default: "TTM residual (OCF − NI − D&A − SBC) ÷ change in revenue"
+  why: "Captures the deferred-revenue tailwind of subscription businesses."
+  changes_it: "Billing-term changes, or using Flat mode for businesses whose working capital scales with revenue rather than growth."
+  bump: 0.05
+- id: share_change
+  name: Annual change in share count
+  input: in_ShareChg
+  default: "Last year's diluted share change"
+  why: "Dilution from stock compensation is a real cost per share in the value-over-time table and the IRR."
+  changes_it: "A buyback programme, or a slowdown in equity grants."
+  bump: 0.01
+- id: discounting
+  name: Year-end discounting
+  setting: {in_Timing: "Mid-year"}
+  default: "End-of-year"
+  why: "Conservative and the simplest to audit; mid-year assumes cash arrives evenly through the year."
+  changes_it: "House convention; mid-year is common in banking models."
+- id: sbc_treatment
+  name: Stock-based compensation treatment
+  setting: {in_Basis: "GAAP"}
+  default: "Workbook basis chosen at creation (Non-GAAP adds SBC back to operating income)"
+  why: "Non-GAAP shows how the company presents itself; GAAP treats SBC as the real cost it is. Sensitivity shown: switch to GAAP."
+  changes_it: "Whether you think SBC is a cash-equivalent cost (GAAP) or not. Under Non-GAAP, dilution is captured only through the share-count drift."
+- id: tax_losses
+  name: No tax benefit on operating losses
+  setting: {in_LossTax: "Tax credit on losses"}
+  default: "No tax benefit"
+  why: "Realistic unless the company has large usable NOLs or profitable group entities."
+  changes_it: "Evidence of usable tax losses."
+- id: terminal_method
+  name: Terminal value method
+  setting: {in_TVMethod: "Exit Multiple"}
+  default: "Perpetuity (Gordon growth)"
+  why: "Intrinsic, does not import today's market multiples."
+  changes_it: "When a transaction multiple is the relevant exit (private equity style analysis)."
