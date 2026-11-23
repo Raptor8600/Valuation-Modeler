@@ -40,8 +40,16 @@ everywhere else. Everything else - engine, reference implementation, edge cases,
 
 ## Use it
 
-Open the hosted app (link in the repository description). Choose **Reference snapshot** (offline, DDOG) or **Fetch live**
-in the sidebar and pick **GAAP** or **Non-GAAP**: the basis is shown on every tab.
+Open the hosted app (link in the repository description). It opens on **Start here**, a short guide. Then:
+
+1. **Examples** - three ready-made companies (Datadog with real data, two made-up ones) that show what a complete model
+   looks like and what each screen should display.
+2. **Live search** - type a ticker plus your name and email (the SEC requires a contact on every data request; it is
+   sent only to the SEC and not saved).
+3. **My searches** - every search from this session (a *snapshot*: the data exactly as returned at that moment). Private
+   to your browser; download one to keep it and re-open it later.
+
+Pick **GAAP** or **Non-GAAP** in the left menu: the basis applies to every tab.
 
 ## Verify it
 

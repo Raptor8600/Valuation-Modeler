@@ -42,7 +42,7 @@ class FakeStreamlit(types.ModuleType):
     # ---- display ----	
     def _show(self, *a, **k):	
         self.shown.append(a) 
-    set_page_config = title = header = subheader = markdown = caption = write = code = json = _show 
+    set_page_config = title = header = subheader = markdown = caption = write = code = json = divider = _show 
     error = warning = info = success = table = metric = _show 
 
     def dataframe(self, data, *a, **k):	
@@ -85,25 +85,31 @@ class FakeStreamlit(types.ModuleType):
     def checkbox(self, label, value=False, key=None, **k):	
         return self._w(key, value)	
 
-    def button(self, label, *a, **k): 
-        return label in self.press 
+    def button(self, label, *a, on_click=None, args=(), **k): 
+        pressed = label in self.press and not k.get("disabled") 
+        if pressed and on_click: 
+            on_click(*args)	
+        return pressed	
+
+    def file_uploader(self, *a, **k): 
+        return None 
 
     def download_button(self, label, data, file_name=None, **k): 
-        self.downloads[file_name] = data	
+        self.downloads[file_name] = data 
 
-    # ---- control flow / caching ----	
-    def stop(self): 
+    # ---- control flow / caching ---- 
+    def stop(self):	
         raise _Stop() 
 
     def rerun(self): 
         raise _Stop() 
 
-    def _cache(self, fn=None, **k): 
-        if fn is None:	
-            return lambda f: f 
+    def _cache(self, fn=None, **k):	
+        if fn is None: 
+            return lambda f: f	
         return fn 
-    cache_data = cache_resource = _cache 
+    cache_data = cache_resource = _cache	
 
     @property	
-    def secrets(self): 
-        raise FileNotFoundError("no secrets in tests")	
+    def secrets(self):	
+        raise FileNotFoundError("no secrets in tests") 

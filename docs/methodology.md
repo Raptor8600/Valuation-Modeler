@@ -16,7 +16,8 @@ This document separates the three kinds of content in the model. Every number in
 * **Filings directory**: SEC `submissions` API (latest 10-K, 10-Q and the Item 2.02 earnings 8-K with Exhibit 99.1).
 * **Market data**: Yahoo Finance via `yfinance` (price, 5-year beta, ^TNX 10-year yield, analyst revenue-growth consensus).
   Third-party and unofficial; there is no filing to check these against.
-* Every live fetch is saved unmodified as a timestamped JSON file in `data_snapshots/`; any snapshot can be replayed.
+* Every live search is kept as a snapshot - the raw provider responses exactly as returned, with request URLs and fetch
+  time - in the visitor's session (My searches); it can be downloaded and re-opened later, and replays identically.
 
 ## 2. From facts to inputs (formulas)
 

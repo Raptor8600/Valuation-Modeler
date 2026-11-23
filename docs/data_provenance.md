@@ -12,7 +12,7 @@ Every input shows one source tag:
 
 ## Snapshots
 
-`data_snapshots/<TICKER>_<YYYYMMDDTHHMMSS>.json` holds the raw provider responses for one live fetch:
+A snapshot (one live search - in the app: My searches, downloadable as JSON) holds the raw provider responses:
 
 * `tickers` - the matching row of https://www.sec.gov/files/company_tickers.json
 * `submissions` - https://data.sec.gov/submissions/CIK##########.json

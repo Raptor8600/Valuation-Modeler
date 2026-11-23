@@ -26,12 +26,9 @@ Build it locally with `python -m scripts.build_site` and open `site/index.html` 
 
 1. Push this repository to GitHub (public, or private with Community Cloud access granted).
 2. Go to https://share.streamlit.io → **Create app** → pick the repo, branch `main`, main file `app.py`.
-3. Under **Advanced settings → Secrets** add your SEC contact (the SEC requires a User-Agent with an email):
-   ```toml
-   SEC_USER_AGENT = "Your Name you@example.com"
-   ```
-   The app reads it from `st.secrets` or the `SEC_USER_AGENT` environment variable. Nothing secret is committed.
-4. Deploy. Snapshots written on Community Cloud live on an ephemeral disk; download any you want to keep.
+3. No secrets are needed: each visitor types their own name and email for the SEC on the Live search page (it goes
+   only to the SEC with their requests). Nothing secret is committed.
+4. Deploy. Searches are kept in each visitor's browser session (My searches), not on the server; visitors download any they want to keep.
 
 ## Option 2: Docker on any host (Render, Fly.io, a VM)
 
@@ -41,13 +38,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
-ENV SEC_USER_AGENT="Your Name you@example.com"
 EXPOSE 8501
 CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
 ```
 
-Set `SEC_USER_AGENT` as an environment variable in the host's dashboard rather than in the image. Mount a volume on
-`/app/data_snapshots` to keep fetched snapshots.
+
 
 ## Running locally
 
