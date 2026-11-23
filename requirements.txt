@@ -1,8 +1,6 @@
-# App + engine. Versions of numpy, pandas, openpyxl and PyYAML were installed and tested in the build environment.
-# streamlit and yfinance could NOT be installed there (no network); their pins are unverified - see docs/known_issues.md.
-numpy==2.5.3
-pandas==3.0.5
-openpyxl==3.1.5
-PyYAML==6.0.3
-streamlit==1.45.1
-yfinance==0.2.61
+streamlit
+yfinance
+numpy
+pandas
+openpyxl
+PyYAML
