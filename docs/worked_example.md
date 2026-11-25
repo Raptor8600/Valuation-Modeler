@@ -143,6 +143,8 @@ Centre cell $48.357505 = fair value $48.357505.
 | Reverse DCF solver residual | PASS | f(g*) = model EV − market EV = -1.448e-09 $M after 40 bisection steps; bracket width 1.8e-14 |
 | Reverse DCF: single growth rate fits | PASS | Sign changes on the −50%…+150% grid: 1 |
 | Implied value path starts at market price | PASS | Year-0 implied price $157.369995 vs price $157.369995 |
+| Scenario weights = 100% | PASS | Bear 25% + Base 50% + Bull 25% = 100.00% |
+| Base case = DCF fair value (automatic fade) | PASS | Base case value today $48.357505 vs DCF fair value $48.357505 |
 | Year-10 growth within 1pp of terminal growth | PASS | Year-10 growth 2.50% vs terminal 2.50% |
 | Units consistency ($M ↔ $K) | PASS | Fair value in $M: $48.357505; recomputed in $K (×1,000 money and shares): $48.357505 |
 | IRR: NPV of cash flows at the IRR = 0 | PASS | Σ CF_t/(1+13.7692%)^t = -2.84e-14 $/share |

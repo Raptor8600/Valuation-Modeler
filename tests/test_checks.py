@@ -33,3 +33,15 @@ def test_summary_strings():
     assert checks.summary([{"status": "PASS"}]) == "PASS: all checks pass" 
     assert checks.summary([{"status": "WARN"}, {"status": "PASS"}]).startswith("WARN")	
     assert checks.summary([{"status": "FAIL"}, {"status": "WARN"}]).startswith("FAIL") 
+
+
+def test_scenario_checks(companies):	
+    c = company(companies, "DDOG", "Non-GAAP")	
+    r = engine.run(c) 
+    by = {x["id"]: x for x in checks.run_checks(r)} 
+    assert by["scen_weights"]["status"] == "PASS" and by["scen_base"]["status"] == "PASS" 
+    assert r.scen["cases"]["Base"]["v0"] == r.dcf["fv"]	
+    bear, base, bull = (r.scen["cases"][n]["v0"] for n in ("Bear", "Base", "Bull"))	
+    assert bear < base < bull 
+    r2 = engine.run(c, {"th_WBear": 0.5}) 
+    assert {x["id"]: x for x in checks.run_checks(r2)}["scen_weights"]["status"] == "FAIL" 

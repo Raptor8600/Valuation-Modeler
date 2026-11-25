@@ -49,4 +49,6 @@ IRR_SENS_MULTS = (0.70, 0.80, 0.90, 1.00, 1.10, 1.20, 1.30)
 RDCF_GRID_LO, RDCF_GRID_STEP, RDCF_GRID_N = -0.50, 0.01, 201 
 RDCF_BISECTIONS = 40 
 YEARS = 10 
-GUARD_G_GAP = 0.01          # Forecast Builder B6 / DCF B35: Year-10 growth within 1pp of terminal g	
+GUARD_G_GAP = 0.01	
+SCEN_WEIGHTS = {"Bear": 0.25, "Base": 0.50, "Bull": 0.25}   # Thesis & Scenarios E30:E32 
+THESIS_H = 1.0             # Thesis & Scenarios B10: price-target horizon (years)          # Forecast Builder B6 / DCF B35: Year-10 growth within 1pp of terminal g	

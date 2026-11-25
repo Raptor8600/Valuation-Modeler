@@ -530,6 +530,33 @@ formulas:
   reference: "(checked against Excel only)"
   tests: [tests/test_excel_parity.py::test_parity_all_metrics]
   show: "Centre {irr_SensCentre:pct2} vs simple return {irr_SimpleRet:pct2}"
+# ------------------------------------------------------------------------------------------------ SCENARIOS
+- id: scenario.values
+  name: Bear / Base / Bull values and the probability-weighted value
+  group: Scenarios
+  kind: judgment
+  formula: "Each case runs the DCF on its own Forecast Builder path (Bear: growth − 5pp·(10 − t)/9, margin − 3pp phased in; Base = automatic fade; Bull: + 5pp / + 3pp; every cell editable). Value today = (EV + net cash) ÷ shares; price target = the case's value path at the horizon (straight-line between years); weighted = Σ weight × case value"
+  explain: "Shows the range of outcomes next to today's price. The weights are your judgment of how likely each case is; they must add to 100%."
+  inputs: [fc_BearG, fc_BearM, fc_BullG, fc_BullM, th_H, th_WBear, th_WBase, th_WBull]
+  units: "$/share"
+  excel: {sheet: "Thesis & Scenarios", name: th_V0Bear}
+  python: valuation.engine.scenarios
+  reference: "(checked against Excel only)"
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics, tests/test_checks.py::test_scenario_checks]
+  show: "Bear {th_V0Bear:px} (growth {th_G1Bear:pct1} → margin {th_M10Bear:pct1}), Base {th_V0Base:px}, Bull {th_V0Bull:px}; weighted = {th_WBear:pct0} × {th_V0Bear:px} + {th_WBase:pct0} × {th_V0Base:px} + {th_WBull:pct0} × {th_V0Bull:px} = {th_V0:px} vs price {in_Price:px}"
+- id: scenario.targets
+  name: Price targets at the horizon
+  group: Scenarios
+  kind: formula
+  formula: "PT = price path(⌊H⌋) + (H − ⌊H⌋) × [price path(⌊H⌋ + 1) − price path(⌊H⌋)];  weighted PT = Σ weight × PT"
+  explain: "Where each case's DCF says the share price will be after H years if that case plays out."
+  inputs: [th_H]
+  units: "$/share"
+  excel: {sheet: "Thesis & Scenarios", name: th_PT}
+  python: valuation.engine.scenarios
+  reference: "(checked against Excel only)"
+  tests: [tests/test_excel_parity.py::test_parity_all_metrics]
+  show: "@ {th_H:num2} yrs: Bear {th_PTBear:px}, Base {th_PTBase:px}, Bull {th_PTBull:px}; weighted {th_PT:px}"
 # ------------------------------------------------------------------------------------------------ OTHER
 - id: units.convert
   name: Unit conversion
@@ -554,4 +581,5 @@ chains:
   "Sensitivity": [dcf.sensitivity]
   "Implied growth (Reverse DCF)": [rdcf.target, rdcf.ev_of_g, rdcf.solve, rdcf.proof, rdcf.gap]
   "IRR": [irr.metric_path, irr.entry_multiple, irr.exit_price, irr.irr, irr.sensitivity]
+  "Scenarios (Bear / Base / Bull)": [fc.scenarios, scenario.values, scenario.targets]
   "Data bridge": [data.ttm, data.nongaap_adj, data.ebit_margin, data.da_used, data.capex, data.nwc_resid, data.net_cash, defaults.g1, defaults.ratios]

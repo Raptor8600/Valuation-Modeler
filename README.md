@@ -49,7 +49,9 @@ Open the hosted app (link in the repository description). It opens on **Start he
 3. **My searches** - every search from this session (a *snapshot*: the data exactly as returned at that moment). Private
    to your browser; download one to keep it and re-open it later.
 
-Pick **GAAP** or **Non-GAAP** in the left menu: the basis applies to every tab.
+Every company opens with the current share price beside the **Bear / Base / Bull** values and the probability-weighted
+value. Pick **GAAP** or **Non-GAAP** in the left menu: the basis applies to every tab. The **Download** tab gives a
+values-only Excel file of the run (no formulas) and the search data.
 
 ## Verify it
 
@@ -77,6 +79,7 @@ CI runs the public test suite on every push. The owner regenerates the full repo
 | `reference_impl/simple_valuation.py` | independent, deliberately simple re-implementation (no shared code) |
 | `formulas.yaml` / `assumptions.yaml` | formula registry and assumptions register (drive the Logic / Assumptions pages and the docs) |
 | `valuation/checks.py` | live integrity checks |
+| `valuation/xlsx_export.py` | values-only Excel export |
 | `valuation/data_sources.py` | live fetch → raw snapshot; replay |
 | `valuation/sec_data.py` | SEC XBRL parser shared with the Excel builder |
 | `app.py`, `modules/` | Streamlit UI |

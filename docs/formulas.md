@@ -488,6 +488,32 @@ Each entry: the formula, the logic in plain English, where the same logic lives 
 - **Reference implementation:** `(checked against Excel only)`
 - **Verified by:** `tests/test_excel_parity.py::test_parity_all_metrics`
 
+## Scenarios
+
+### `scenario.values` - Bear / Base / Bull values and the probability-weighted value
+
+- **Kind:** judgment
+- **Formula:** Each case runs the DCF on its own Forecast Builder path (Bear: growth − 5pp·(10 − t)/9, margin − 3pp phased in; Base = automatic fade; Bull: + 5pp / + 3pp; every cell editable). Value today = (EV + net cash) ÷ shares; price target = the case's value path at the horizon (straight-line between years); weighted = Σ weight × case value
+- **Logic:** Shows the range of outcomes next to today's price. The weights are your judgment of how likely each case is; they must add to 100%.
+- **Inputs:** `fc_BearG`, `fc_BearM`, `fc_BullG`, `fc_BullM`, `th_H`, `th_WBear`, `th_WBase`, `th_WBull`
+- **Units:** $/share
+- **Excel:** 'Thesis & Scenarios'!J30 (name `th_V0Bear`)
+- **Python:** `valuation.engine.scenarios`
+- **Reference implementation:** `(checked against Excel only)`
+- **Verified by:** `tests/test_excel_parity.py::test_parity_all_metrics`, `tests/test_checks.py::test_scenario_checks`
+
+### `scenario.targets` - Price targets at the horizon
+
+- **Kind:** formula
+- **Formula:** PT = price path(⌊H⌋) + (H − ⌊H⌋) × [price path(⌊H⌋ + 1) − price path(⌊H⌋)];  weighted PT = Σ weight × PT
+- **Logic:** Where each case's DCF says the share price will be after H years if that case plays out.
+- **Inputs:** `th_H`
+- **Units:** $/share
+- **Excel:** 'Thesis & Scenarios'!B12 (name `th_PT`)
+- **Python:** `valuation.engine.scenarios`
+- **Reference implementation:** `(checked against Excel only)`
+- **Verified by:** `tests/test_excel_parity.py::test_parity_all_metrics`
+
 ## Units
 
 ### `units.convert` - Unit conversion
@@ -512,4 +538,5 @@ Each entry: the formula, the logic in plain English, where the same logic lives 
 - **Sensitivity:** `dcf.sensitivity`
 - **Implied growth (Reverse DCF):** `rdcf.target` → `rdcf.ev_of_g` → `rdcf.solve` → `rdcf.proof` → `rdcf.gap`
 - **IRR:** `irr.metric_path` → `irr.entry_multiple` → `irr.exit_price` → `irr.irr` → `irr.sensitivity`
+- **Scenarios (Bear / Base / Bull):** `fc.scenarios` → `scenario.values` → `scenario.targets`
 - **Data bridge:** `data.ttm` → `data.nongaap_adj` → `data.ebit_margin` → `data.da_used` → `data.capex` → `data.nwc_resid` → `data.net_cash` → `defaults.g1` → `defaults.ratios`

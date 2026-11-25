@@ -25,9 +25,9 @@
  "DDOG|Non-GAAP|rd_G": 0.33518397845978143,
  "parity_counts": {
   "fails": 1,
-  "ok": 19175,
-  "scenarios": 136,
-  "values": 19176
+  "ok": 21887,
+  "scenarios": 144,
+  "values": 21888
  },
  "reference_worst": {
   "fv": 4.547473508864641e-13,

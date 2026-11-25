@@ -28,12 +28,12 @@ letter-spacing:.04em}.cv{font-size:26px;font-weight:600;margin:4px 0}.cs{color:v
 <body><nav><h1>Valuation Modeler</h1><div class="sub">DCF · Reverse DCF · IRR - every number traceable</div>
 <input id="q" placeholder="Filter sections…" aria-label="Filter sections"><a href="#overview" data-s="overview">Overview</a><a href="#verification" data-s="verification">Verification report</a><a href="#worked-example" data-s="worked-example">Worked example (DDOG)</a><a href="#formulas" data-s="formulas">Formula registry</a><a href="#assumptions" data-s="assumptions">Assumptions register</a><a href="#methodology" data-s="methodology">Methodology</a><a href="#provenance" data-s="provenance">Data provenance</a><a href="#limitations" data-s="limitations">Limitations</a><a href="#known-issues" data-s="known-issues">Known issues</a><a href="#deployment" data-s="deployment">Deployment</a><a href="#changelog" data-s="changelog">Changelog</a></nav>
 <main><section id="overview"><div class="cards">
-<div class="card"><div class="ct">Tests passed</div><div class="cv">392</div><div class="cs">1 skipped</div></div>
-<div class="card"><div class="ct">Excel parity</div><div class="cv">19175 / 19176</div><div class="cs">values within 0.1% across 136 scenarios</div></div>
+<div class="card"><div class="ct">Tests passed</div><div class="cv">397</div><div class="cs">1 skipped</div></div>
+<div class="card"><div class="ct">Excel parity</div><div class="cv">21887 / 21888</div><div class="cs">values within 0.1% across 144 scenarios</div></div>
 <div class="card"><div class="ct">Disagreements</div><div class="cv">1</div><div class="cs">every one listed and explained</div></div>
 <div class="card"><div class="ct">Reference impl.</div><div class="cv">9e-13</div><div class="cs">largest difference vs independent code</div></div>
 </div>
-<p class="meta">Report generated 2026-11-23 16:33:59 at commit <code>0b8449112a</code>. The interactive calculator is the Streamlit app (see Deployment).</p>
+<p class="meta">Report generated 2026-11-24 02:41:00 at commit <code>d4e7687d77</code>. The interactive calculator is the Streamlit app (see Deployment).</p>
 <h3>DDOG reference snapshot - headline results (engine, default inputs)</h3><table><thead><tr><th>Basis</th><th>Fair value</th><th>Price</th><th>Implied growth (Reverse DCF)</th><th>IRR (P/E, 5y)</th><th>WACC</th><th>Live checks</th></tr></thead><tbody>
 <tr><td>Non-GAAP</td><td>$48.36</td><td>$157.37</td><td>33.52%</td><td>13.77%</td><td>13.1%</td><td>PASS: all checks pass</td></tr>
 <tr><td>GAAP</td><td>$11.78</td><td>$157.37</td><td>92.68%</td><td>13.77%</td><td>13.1%</td><td>WARN: 1 warning(s) to review</td></tr>
@@ -51,6 +51,8 @@ letter-spacing:.04em}.cv{font-size:26px;font-weight:600;margin:4px 0}.cs{color:v
 <tr><td class="st pass">PASS</td><td>Reverse DCF solver residual</td><td>f(g*) = model EV − market EV = -1.448e-09 $M after 40 bisection steps; bracket width 1.8e-14</td></tr>
 <tr><td class="st pass">PASS</td><td>Reverse DCF: single growth rate fits</td><td>Sign changes on the −50%…+150% grid: 1</td></tr>
 <tr><td class="st pass">PASS</td><td>Implied value path starts at market price</td><td>Year-0 implied price $157.369995 vs price $157.369995</td></tr>
+<tr><td class="st pass">PASS</td><td>Scenario weights = 100%</td><td>Bear 25% + Base 50% + Bull 25% = 100.00%</td></tr>
+<tr><td class="st pass">PASS</td><td>Base case = DCF fair value (automatic fade)</td><td>Base case value today $48.357505 vs DCF fair value $48.357505</td></tr>
 <tr><td class="st pass">PASS</td><td>Year-10 growth within 1pp of terminal growth</td><td>Year-10 growth 2.50% vs terminal 2.50%</td></tr>
 <tr><td class="st pass">PASS</td><td>Units consistency ($M ↔ $K)</td><td>Fair value in $M: $48.357505; recomputed in $K (×1,000 money and shares): $48.357505</td></tr>
 <tr><td class="st pass">PASS</td><td>IRR: NPV of cash flows at the IRR = 0</td><td>Σ CF_t/(1+13.7692%)^t = -2.84e-14 $/share</td></tr>
@@ -68,6 +70,8 @@ letter-spacing:.04em}.cv{font-size:26px;font-weight:600;margin:4px 0}.cs{color:v
 <tr><td class="st pass">PASS</td><td>Reverse DCF solver residual</td><td>f(g*) = model EV − market EV = -1.222e-09 $M after 40 bisection steps; bracket width 1.8e-14</td></tr>
 <tr><td class="st pass">PASS</td><td>Reverse DCF: single growth rate fits</td><td>Sign changes on the −50%…+150% grid: 1</td></tr>
 <tr><td class="st pass">PASS</td><td>Implied value path starts at market price</td><td>Year-0 implied price $157.369995 vs price $157.369995</td></tr>
+<tr><td class="st pass">PASS</td><td>Scenario weights = 100%</td><td>Bear 25% + Base 50% + Bull 25% = 100.00%</td></tr>
+<tr><td class="st pass">PASS</td><td>Base case = DCF fair value (automatic fade)</td><td>Base case value today $11.775001 vs DCF fair value $11.775001</td></tr>
 <tr><td class="st pass">PASS</td><td>Year-10 growth within 1pp of terminal growth</td><td>Year-10 growth 2.50% vs terminal 2.50%</td></tr>
 <tr><td class="st pass">PASS</td><td>Units consistency ($M ↔ $K)</td><td>Fair value in $M: $11.775001; recomputed in $K (×1,000 money and shares): $11.775001</td></tr>
 <tr><td class="st pass">PASS</td><td>IRR: NPV of cash flows at the IRR = 0</td><td>Σ CF_t/(1+13.7692%)^t = -5.68e-14 $/share</td></tr>
@@ -140,7 +144,9 @@ everywhere else. Everything else - engine, reference implementation, edge cases,
 <li><strong>My searches</strong> - every search from this session (a <em>snapshot</em>: the data exactly as returned at that moment). Private
    to your browser; download one to keep it and re-open it later.</li>
 </ol>
-<p>Pick <strong>GAAP</strong> or <strong>Non-GAAP</strong> in the left menu: the basis applies to every tab.</p>
+<p>Every company opens with the current share price beside the <strong>Bear / Base / Bull</strong> values and the probability-weighted
+value. Pick <strong>GAAP</strong> or <strong>Non-GAAP</strong> in the left menu: the basis applies to every tab. The <strong>Download</strong> tab gives a
+values-only Excel file of the run (no formulas) and the search data.</p>
 <h2 id="overview-verify-it">Verify it</h2>
 <p>CI runs the public test suite on every push. The owner regenerates the full report, including Excel parity, with
 <code>python -m scripts.verify</code> (needs the private builder and LibreOffice).</p>
@@ -186,6 +192,10 @@ everywhere else. Everything else - engine, reference implementation, edge cases,
 <td>live integrity checks</td>
 </tr>
 <tr>
+<td><code>valuation/xlsx_export.py</code></td>
+<td>values-only Excel export</td>
+</tr>
+<tr>
 <td><code>valuation/data_sources.py</code></td>
 <td>live fetch → raw snapshot; replay</td>
 </tr>
@@ -228,9 +238,9 @@ secrets are stored in the repository; the SEC contact goes in Streamlit secrets 
 <p>All rights reserved - see <a href="../LICENSE">LICENSE</a>. The code is published for transparency and review, not for reuse.</p><p class="meta">Source: <a href="../README.md">README.md</a></p></section><section id="verification"><h1 id="verification-verification-report">Verification report</h1>
 <p><em>Generated by <code>python -m scripts.verify</code> on the owner's machine (the Excel parity tests need the private Excel builder and LibreOffice). Do not edit by hand; <code>python -m scripts.verify --check</code> fails if any number drifts. Public CI runs every other test on each push.</em></p>
 <ul>
-<li><strong>Generated:</strong> 2026-11-23 16:33:59 (local time of the machine that ran it)</li>
-<li><strong>Git commit:</strong> <code>0b8449112a1edc02101949f70f9165156b601bb6</code></li>
-<li><strong>Versions:</strong> python 3.13.18, numpy 2.5.3, openpyxl 3.1.5, pyyaml 6.0.3, pytest 9.1.1, libreoffice LibreOffice 24.2.7.2 420(Build:2), platform Linux-6.18.44-fc-v726-x86_64-with-glibc2.39, streamlit not installed, yfinance not installed, pandas 3.0.5</li>
+<li><strong>Generated:</strong> 2026-11-24 02:41:00 (local time of the machine that ran it)</li>
+<li><strong>Git commit:</strong> <code>d4e7687d77d6ae6f238c7d350721cb6f4fddbdc7</code></li>
+<li><strong>Versions:</strong> python 3.13.18, numpy 2.5.3, openpyxl 3.1.5, pyyaml 6.0.3, pytest 9.1.1, libreoffice LibreOffice 24.2.7.2 420(Build:2), platform Linux-6.18.44-fc-v819-x86_64-with-glibc2.39, streamlit not installed, yfinance not installed, pandas 3.0.5</li>
 <li><strong>pytest exit code:</strong> 0 (all tests passed)</li>
 </ul>
 <p>Reproduce (owner): <code>pip install -r requirements-dev.txt</code>, LibreOffice, the private builder in <code>VALUATION_BUILDER_DIR</code>, then <code>python -m scripts.verify</code>. Anyone: <code>python -m pytest</code> runs every non-Excel test.</p>
@@ -460,8 +470,8 @@ secrets are stored in the repository; the SEC contact goes in Streamlit secrets 
 </table>
 <h2 id="verification-2-parity-across-every-scenario">2. Parity across every scenario</h2>
 <ul>
-<li>Scenarios (dataset × basis × variant): <strong>136</strong> - DDOG Non-GAAP and GAAP (real, transcribed data), SMPL profitable and SMPL loss-making (synthetic); every toggle (terminal method and metric, WACC mode, working-capital method, mid-year, tax on losses, Bear / Bull scenario, manual overrides, margin target, constant-margin reverse DCF, cash retention, analyst overrides of price / WACC / growth / ratios / base data, Data &amp; Sources switches, terminal growth above WACC) and all 22 IRR multiple × timing combinations.</li>
-<li>Values compared: <strong>19176</strong>; within tolerance: <strong>19175</strong>; disagreements: <strong>1</strong>.</li>
+<li>Scenarios (dataset × basis × variant): <strong>144</strong> - DDOG Non-GAAP and GAAP (real, transcribed data), SMPL profitable and SMPL loss-making (synthetic); every toggle (terminal method and metric, WACC mode, working-capital method, mid-year, tax on losses, Bear / Bull scenario, manual overrides, margin target, constant-margin reverse DCF, cash retention, analyst overrides of price / WACC / growth / ratios / base data, Data &amp; Sources switches, terminal growth above WACC) and all 22 IRR multiple × timing combinations.</li>
+<li>Values compared: <strong>21888</strong>; within tolerance: <strong>21887</strong>; disagreements: <strong>1</strong>.</li>
 <li>Largest relative difference among agreeing numeric values: 9.91e-13.</li>
 </ul>
 <h3 id="verification-every-disagreement">Every disagreement</h3>
@@ -535,12 +545,12 @@ secrets are stored in the repository; the SEC contact goes in Streamlit secrets 
 <pre><code>.............s.......................................................... [ 18%]
 ........................................................................ [ 36%]
 ........................................................................ [ 54%]
-........................................................................ [ 73%]
-........................................................................ [ 91%]
-.................................                                        [100%]
+........................................................................ [ 72%]
+........................................................................ [ 90%]
+......................................                                   [100%]
 =========================== short test summary info ============================
-SKIPPED [1] tests/test_app_smoke.py:155: streamlit not installed in this environment
-392 passed, 1 skipped in 120.70s (0:02:00)
+SKIPPED [1] tests/test_app_smoke.py:150: streamlit not installed in this environment
+397 passed, 1 skipped in 119.41s (0:01:59)
 </code></pre><p class="meta">Source: <a href="../VERIFICATION_REPORT.md">VERIFICATION_REPORT.md</a></p></section><section id="worked-example"><h1 id="worked-example-worked-example-ddog-non-gaap-basis-every-number">Worked example: DDOG, Non-GAAP basis, every number</h1>
 <p><em>Generated by <code>python -m scripts.gen_docs</code> from the engine; the numbers cannot drift from the code. <code>tests/test_excel_parity.py</code> confirms the same numbers come out of the Excel workbook (LibreOffice recalculation) to 0.1%; see VERIFICATION_REPORT.md.</em></p>
 <p><strong>Data:</strong> the DDOG reference snapshot <code>data_snapshots/reference/DDOG_2026-11-22T2117_transcribed.json</code>. Its figures were transcribed from the Data &amp; Sources tab of a workbook the project owner generated from live SEC XBRL and Yahoo Finance data on 2026-11-22 21:17 (see <code>scripts/reconstruct_ddog_snapshot.py</code>). It is not a raw API response.</p>
@@ -1129,6 +1139,16 @@ Market data (Yahoo Finance via yfinance, 2026-11-22 21:17): price $157.37, beta 
 <td>Year-0 implied price $157.369995 vs price $157.369995</td>
 </tr>
 <tr>
+<td>Scenario weights = 100%</td>
+<td>PASS</td>
+<td>Bear 25% + Base 50% + Bull 25% = 100.00%</td>
+</tr>
+<tr>
+<td>Base case = DCF fair value (automatic fade)</td>
+<td>PASS</td>
+<td>Base case value today $48.357505 vs DCF fair value $48.357505</td>
+</tr>
+<tr>
 <td>Year-10 growth within 1pp of terminal growth</td>
 <td>PASS</td>
 <td>Year-10 growth 2.50% vs terminal 2.50%</td>
@@ -1624,6 +1644,31 @@ Market data (Yahoo Finance via yfinance, 2026-11-22 21:17): price $157.37, beta 
 <li><strong>Reference implementation:</strong> <code>(checked against Excel only)</code></li>
 <li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
 </ul>
+<h2 id="formulas-scenarios">Scenarios</h2>
+<h3 id="formulas-scenario-values-bear-base-bull-values-and-the-probability-we"><code>scenario.values</code> - Bear / Base / Bull values and the probability-weighted value</h3>
+<ul>
+<li><strong>Kind:</strong> judgment</li>
+<li><strong>Formula:</strong> Each case runs the DCF on its own Forecast Builder path (Bear: growth − 5pp·(10 − t)/9, margin − 3pp phased in; Base = automatic fade; Bull: + 5pp / + 3pp; every cell editable). Value today = (EV + net cash) ÷ shares; price target = the case's value path at the horizon (straight-line between years); weighted = Σ weight × case value</li>
+<li><strong>Logic:</strong> Shows the range of outcomes next to today's price. The weights are your judgment of how likely each case is; they must add to 100%.</li>
+<li><strong>Inputs:</strong> <code>fc_BearG</code>, <code>fc_BearM</code>, <code>fc_BullG</code>, <code>fc_BullM</code>, <code>th_H</code>, <code>th_WBear</code>, <code>th_WBase</code>, <code>th_WBull</code></li>
+<li><strong>Units:</strong> $/share</li>
+<li><strong>Excel:</strong> 'Thesis &amp; Scenarios'!J30 (name <code>th_V0Bear</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.scenarios</code></li>
+<li><strong>Reference implementation:</strong> <code>(checked against Excel only)</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code>, <code>tests/test_checks.py::test_scenario_checks</code></li>
+</ul>
+<h3 id="formulas-scenario-targets-price-targets-at-the-horizon"><code>scenario.targets</code> - Price targets at the horizon</h3>
+<ul>
+<li><strong>Kind:</strong> formula</li>
+<li><strong>Formula:</strong> PT = price path(⌊H⌋) + (H − ⌊H⌋) × [price path(⌊H⌋ + 1) − price path(⌊H⌋)];  weighted PT = Σ weight × PT</li>
+<li><strong>Logic:</strong> Where each case's DCF says the share price will be after H years if that case plays out.</li>
+<li><strong>Inputs:</strong> <code>th_H</code></li>
+<li><strong>Units:</strong> $/share</li>
+<li><strong>Excel:</strong> 'Thesis &amp; Scenarios'!B12 (name <code>th_PT</code>)</li>
+<li><strong>Python:</strong> <code>valuation.engine.scenarios</code></li>
+<li><strong>Reference implementation:</strong> <code>(checked against Excel only)</code></li>
+<li><strong>Verified by:</strong> <code>tests/test_excel_parity.py::test_parity_all_metrics</code></li>
+</ul>
 <h2 id="formulas-units">Units</h2>
 <h3 id="formulas-units-convert-unit-conversion"><code>units.convert</code> - Unit conversion</h3>
 <ul>
@@ -1647,6 +1692,7 @@ Market data (Yahoo Finance via yfinance, 2026-11-22 21:17): price $157.37, beta 
 <li><strong>Sensitivity:</strong> <code>dcf.sensitivity</code></li>
 <li><strong>Implied growth (Reverse DCF):</strong> <code>rdcf.target</code> → <code>rdcf.ev_of_g</code> → <code>rdcf.solve</code> → <code>rdcf.proof</code> → <code>rdcf.gap</code></li>
 <li><strong>IRR:</strong> <code>irr.metric_path</code> → <code>irr.entry_multiple</code> → <code>irr.exit_price</code> → <code>irr.irr</code> → <code>irr.sensitivity</code></li>
+<li><strong>Scenarios (Bear / Base / Bull):</strong> <code>fc.scenarios</code> → <code>scenario.values</code> → <code>scenario.targets</code></li>
 <li><strong>Data bridge:</strong> <code>data.ttm</code> → <code>data.nongaap_adj</code> → <code>data.ebit_margin</code> → <code>data.da_used</code> → <code>data.capex</code> → <code>data.nwc_resid</code> → <code>data.net_cash</code> → <code>defaults.g1</code> → <code>defaults.ratios</code></li>
 </ul><p class="meta">Source: <a href="../docs/formulas.md">docs/formulas.md</a></p></section><section id="assumptions"><h1 id="assumptions-assumptions-register">Assumptions register</h1>
 <p><em>Generated from <code>assumptions.yaml</code> by <code>python -m scripts.gen_docs</code>. Sensitivities are real re-runs of the engine on the DDOG Non-GAAP reference snapshot (data as of 2026-11-22 21:17), not descriptions.</em></p>
@@ -2030,15 +2076,16 @@ for EV multiples). IRR on per-share cash flows (−price, dividends, exit price)
 <ul>
 <li>The Excel builder is private. Excel parity, the defaults-match-builder test and the workbook download run only on the
   owner's machine; in CI they are skipped and the committed VERIFICATION_REPORT.md is the record. The hosted app does not
-  offer .xlsx downloads.</li>
+  offer the formula workbook; it offers a values-only Excel export of each run instead.</li>
 </ul>
 <h2 id="known-issues-environment">Environment</h2>
 <ul>
 <li><code>streamlit</code> and <code>yfinance</code> were not installed in the build environment, so the Streamlit UI was not run there. The app's
   logic lives in <code>valuation/</code> and is fully tested; <code>tests/test_app_smoke.py</code> runs Streamlit's AppTest when streamlit is
   installed (CI installs it).</li>
-<li>Pinned versions of <code>streamlit</code> and <code>yfinance</code> in requirements.txt were chosen without being installable in the build
-  environment; if pip cannot find them, use the nearest available release and update the pin.</li>
+<li>requirements.txt and requirements-dev.txt list packages without version pins (untested pins broke the Streamlit
+  Cloud install). The exact versions used for each verification run are recorded in VERIFICATION_REPORT.md; once the
+  hosted app runs, its install log shows the versions it uses, which can be copied back as pins.</li>
 </ul><p class="meta">Source: <a href="../docs/known_issues.md">docs/known_issues.md</a></p></section><section id="deployment"><h1 id="deployment-deployment">Deployment</h1>
 <h2 id="deployment-github-pages-the-documentation-portal-not-the-app">GitHub Pages: the documentation portal (not the app)</h2>
 <p>GitHub Pages serves static files only (HTML, CSS, JavaScript). It hosts <code>site/index.html</code>, the documentation and
@@ -2070,7 +2117,7 @@ Build it locally with <code>python -m scripts.build_site</code> and open <code>s
 <td>yes (sec.gov, data.sec.gov, query*.finance.yahoo.com)</td>
 </tr>
 <tr>
-<td>Download .xlsx</td>
+<td>Download (values-only Excel, search data)</td>
 <td>yes</td>
 <td>no</td>
 </tr>
@@ -2107,12 +2154,21 @@ CMD [&quot;streamlit&quot;, &quot;run&quot;, &quot;app.py&quot;, &quot;--server.
 <pre><code class="language-bash">pip install -r requirements.txt
 streamlit run app.py
 </code></pre><p class="meta">Source: <a href="../docs/deployment.md">docs/deployment.md</a></p></section><section id="changelog"><h1 id="changelog-changelog">Changelog</h1>
+<h2 id="changelog-0-3-0-2026-11-24">0.3.0 - 2026-11-24</h2>
+<ul>
+<li>Bear / Base / Bull: each case's value today next to the current share price at the top of every company, plus
+  scenario tables on the DCF (weights, horizon, price targets), Reverse DCF (10-yr growth vs market-implied) and IRR
+  (return to each target) tabs, the values-only Excel export, the Logic page and two new checks. Matches the workbook's
+  Thesis &amp; Scenarios engines (parity-tested).</li>
+</ul>
 <h2 id="changelog-0-2-0-2026-11-23">0.2.0 - 2026-11-23</h2>
 <ul>
 <li>App reorganised: Start here (guide) → Live search → My searches → Examples, with "what you should see" notes
   on each example. Live search asks each visitor for their SEC contact (sent only to the SEC, not stored).</li>
+<li>Override counter no longer counts untouched Data &amp; Sources switches.</li>
 <li>
-<p>Override counter no longer counts untouched Data &amp; Sources switches.</p>
+<p>Download tab: values-only Excel export of each run (no formulas) plus the search data; the JSON audit pack is no
+  longer offered (its content is in the Excel Inputs sheet).</p>
 </li>
 <li>
 <p>Documentation and verification portal: <code>site/index.html</code> (self-contained, published to GitHub Pages by CI).</p>

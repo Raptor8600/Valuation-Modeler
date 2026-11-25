@@ -65,38 +65,48 @@ def run_checks(res) -> list[dict]:
         p0 = rd["path"][0]["price"] 
         add("rdcf_path", "Implied value path starts at market price", PASS if abs(p0 - v["in_Price"]) < 1e-6 else FAIL,	
             f"Year-0 implied price ${p0:,.6f} vs price ${v['in_Price']:,.6f}") 
-    g10 = res.forecast["growth"][-1]	
-    add("g10", "Year-10 growth within 1pp of terminal growth", PASS if abs(g10 - g) <= 0.01 else WARN,	
-        f"Year-10 growth {g10:.2%} vs terminal {g:.2%}") 
+    sc = res.scen	
+    add("scen_weights", "Scenario weights = 100%", PASS if abs(sc["weight_sum"] - 1) < 1e-9 else FAIL,	
+        "Bear {:.0%} + Base {:.0%} + Bull {:.0%} = {:.2%}".format(*[sc["cases"][n]["weight"] for n in ("Bear", "Base", "Bull")], 
+                                                                 sc["weight_sum"])) 
+    if s["fc_Mode"] == "Automatic Fade" and not any(k.startswith("fc_Base") for k in (res.extra.get("ov") or {})): 
+        b = sc["cases"]["Base"]["v0"]	
+        add("scen_base", "Base case = DCF fair value (automatic fade)",	
+            PASS if (b is None and d["fv"] is None) or (b is not None and d["fv"] is not None and abs(b - d["fv"]) < 1e-9) else FAIL, 
+            f"Base case value today {('n/a' if b is None else f'${b:,.6f}')} vs DCF fair value " 
+            f"{('n/a' if d['fv'] is None else '$' + format(d['fv'], ',.6f'))}") 
+    g10 = res.forecast["growth"][-1] 
+    add("g10", "Year-10 growth within 1pp of terminal growth", PASS if abs(g10 - g) <= 0.01 else WARN, 
+        f"Year-10 growth {g10:.2%} vs terminal {g:.2%}")	
     add("units", "Units consistency ($M ↔ $K)", *units_check(res)) 
     ir = res.irr 
-    if ir["irr"] is not None:	
+    if ir["irr"] is not None: 
         npv = sum(c / (1 + ir["irr"]) ** t for t, c in enumerate(ir["cash_flows"]))	
         add("irr_npv", "IRR: NPV of cash flows at the IRR = 0", PASS if abs(npv) < 1e-6 else FAIL, 
-            f"Σ CF_t/(1+{ir['irr']:.4%})^t = {npv:+.2e} $/share") 
+            f"Σ CF_t/(1+{ir['irr']:.4%})^t = {npv:+.2e} $/share")	
     else: 
-        add("irr_npv", "IRR: NPV of cash flows at the IRR = 0", WARN, f"IRR not meaningful for {s['irr_Mult']} ({ir['irr_note']})") 
-    return out 
+        add("irr_npv", "IRR: NPV of cash flows at the IRR = 0", WARN, f"IRR not meaningful for {s['irr_Mult']} ({ir['irr_note']})")	
+    return out	
 
 
 def units_check(res):	
     """Re-run with every dollar amount in $ thousands and shares in thousands: per-share outputs must not move.""" 
     v = res.inputs 
     k = 1000.0 
-    ov = {"in_Price": v["in_Price"], "in_Shares": v["in_Shares"] * k, "in_Cash": v["in_Cash"] * k, "in_Debt": v["in_Debt"] * k,	
+    ov = {"in_Price": v["in_Price"], "in_Shares": v["in_Shares"] * k, "in_Cash": v["in_Cash"] * k, "in_Debt": v["in_Debt"] * k, 
           "in_Other": v["in_Other"] * k, "in_Rev0": v["in_Rev0"] * k, "in_Kd": v["in_Kd"], "in_WACC_Direct": v["in_WACC_Direct"]} 
-    for name in ("in_EBITM0", "in_Beta", "in_Rf", "in_ERP", "in_TaxRate", "in_TermG", "in_ExitMult", "in_G1", "in_MarginTarget",	
+    for name in ("in_EBITM0", "in_Beta", "in_Rf", "in_ERP", "in_TaxRate", "in_TermG", "in_ExitMult", "in_G1", "in_MarginTarget", 
                  "in_MarginYear", "in_DAPct", "in_CapexPct", "in_NWCPct", "in_ShareChg"): 
         ov[name] = v[name]	
-    r2 = engine.run(res.company, ov, res.settings)	
+    r2 = engine.run(res.company, ov, res.settings) 
     a, b = res.dcf["fv"], (r2.dcf or {}).get("fv")	
-    if a is None or b is None: 
+    if a is None or b is None:	
         return WARN, "fair value undefined - nothing to compare" 
     ok = abs(a - b) < 1e-9 * max(1, abs(a)) 
     return (PASS if ok else FAIL), f"Fair value in $M: ${a:,.6f}; recomputed in $K (×1,000 money and shares): ${b:,.6f}" 
 
 
-def summary(checks) -> str: 
-    f = sum(c["status"] == FAIL for c in checks) 
+def summary(checks) -> str:	
+    f = sum(c["status"] == FAIL for c in checks)	
     w = sum(c["status"] == WARN for c in checks) 
-    return f"FAIL: {f} failing check(s)" if f else (f"WARN: {w} warning(s) to review" if w else "PASS: all checks pass")	
+    return f"FAIL: {f} failing check(s)" if f else (f"WARN: {w} warning(s) to review" if w else "PASS: all checks pass") 

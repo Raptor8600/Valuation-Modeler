@@ -1,8 +1,6 @@
-# Engine, tests and verification report (no network or UI needed). LibreOffice must be installed separately
-# for the Excel parity tests (Ubuntu: sudo apt-get install -y libreoffice-calc).
-numpy==2.5.3
-pandas==3.0.5
-openpyxl==3.1.5
-PyYAML==6.0.3
-pytest==9.1.1
-Markdown==3.11
+numpy
+pandas
+openpyxl
+PyYAML
+pytest
+Markdown

@@ -18,7 +18,7 @@ Build it locally with `python -m scripts.build_site` and open `site/index.html` 
 |---|---|---|
 | Valuation engine, Logic, Assumptions, Checks pages | yes | no |
 | Live ticker fetch (SEC EDGAR + Yahoo Finance) | yes | yes (sec.gov, data.sec.gov, query*.finance.yahoo.com) |
-| Download .xlsx | yes | no |
+| Download (values-only Excel, search data) | yes | no |
 | Replaying a saved snapshot | yes | no |
 | Excel parity tests / verification report | yes, plus LibreOffice | no |
 

@@ -30,12 +30,13 @@ No other metric differs by more than 0.1% (most agree to ~1e-12).
 
 * The Excel builder is private. Excel parity, the defaults-match-builder test and the workbook download run only on the
   owner's machine; in CI they are skipped and the committed VERIFICATION_REPORT.md is the record. The hosted app does not
-  offer .xlsx downloads.
+  offer the formula workbook; it offers a values-only Excel export of each run instead.
 
 ## Environment
 
 * `streamlit` and `yfinance` were not installed in the build environment, so the Streamlit UI was not run there. The app's
   logic lives in `valuation/` and is fully tested; `tests/test_app_smoke.py` runs Streamlit's AppTest when streamlit is
   installed (CI installs it).
-* Pinned versions of `streamlit` and `yfinance` in requirements.txt were chosen without being installable in the build
-  environment; if pip cannot find them, use the nearest available release and update the pin.
+* requirements.txt and requirements-dev.txt list packages without version pins (untested pins broke the Streamlit
+  Cloud install). The exact versions used for each verification run are recorded in VERIFICATION_REPORT.md; once the
+  hosted app runs, its install log shows the versions it uses, which can be copied back as pins.

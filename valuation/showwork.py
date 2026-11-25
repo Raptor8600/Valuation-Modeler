@@ -30,7 +30,7 @@ def by_id(path=REGISTRY_PATH) -> dict:
 
 FORMATS = { 
     "pct1": lambda x: f"{x:.1%}", "pct2": lambda x: f"{x:.2%}", "pct3": lambda x: f"{x:.3%}", "pct4": lambda x: f"{x:.4%}", 
-    "pct6": lambda x: f"{x:.6%}", "num2": lambda x: f"{x:,.2f}", "num3": lambda x: f"{x:,.3f}", "num4": lambda x: f"{x:.4f}", 
+    "pct6": lambda x: f"{x:.6%}", "pct0": lambda x: f"{x:.0%}", "num2": lambda x: f"{x:,.2f}", "num3": lambda x: f"{x:,.3f}", "num4": lambda x: f"{x:.4f}", 
     "num6": lambda x: f"{x:.6f}", "m1": lambda x: f"${x:,.1f}M", "m3": lambda x: f"${x:,.3f}M", "px": lambda x: f"${x:,.2f}", 
     "x1": lambda x: f"{x:.1f}x", "x2": lambda x: f"{x:.2f}x", "int": lambda x: f"{x:.0f}", "sci": lambda x: f"{x:+.2e}", 
     "raw": lambda x: f"{x}", 
@@ -128,20 +128,26 @@ def context(res) -> dict:
               "irr_Metric0": ir["rows"][0]["metric_total"], "irr_SensCentre": ir["sens"]["centre"],	
               "irr_Mult": res.settings["irr_Mult"], "irr_Kind": ir["kind"], "irr_DPS0": ir["dps0"], 
               "irr_TotalMult": ir["total_multiple"], "irr_note": ir["irr_note"] or ""})	
-    c["irr_CF"] = ", ".join("n/m" if x is None else f"{x:,.2f}" for x in ir["cash_flows"][:H + 1])	
-    return c	
+    sc = res.scen	
+    if sc is not None:	
+        c["th_H"], c["th_V0"], c["th_PT"], c["th_WSum"] = sc["H"], sc["v0"], sc["pt"], sc["weight_sum"] 
+        for name, cs in sc["cases"].items(): 
+            c[f"th_V0{name}"], c[f"th_PT{name}"], c[f"th_W{name}"], c[f"th_CAGR{name}"] = cs["v0"], cs["pt"], cs["weight"], cs["cagr"] 
+            c[f"th_G1{name}"], c[f"th_M10{name}"] = float(cs["schedule"]["growth"][0]), float(cs["schedule"]["margin"][9]) 
+    c["irr_CF"] = ", ".join("n/m" if x is None else f"{x:,.2f}" for x in ir["cash_flows"][:H + 1]) 
+    return c 
 
 
 def chain(name: str, res, path=REGISTRY_PATH): 
-    """[(entry, rendered string)] for one output's chain of formulas, filtered to the active settings.""" 
+    """[(entry, rendered string)] for one output's chain of formulas, filtered to the active settings."""	
     reg = load_registry(path) 
-    ids = reg["chains"][name] 
-    idx = by_id(path) 
+    ids = reg["chains"][name]	
+    idx = by_id(path)	
     ctx = context(res) 
     out = [] 
-    for i in ids:	
-        e = idx[i] 
+    for i in ids: 
+        e = idx[i]	
         if not applies(e, res.settings):	
-            continue	
+            continue 
         out.append((e, render(e["show"], ctx) if e.get("show") else "")) 
     return out 

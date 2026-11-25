@@ -335,97 +335,131 @@ def value_over_time(ufcf10, per, tv, tv_per, v, s):
     return out 
 
 
+def scenarios(v, ov, fc, s, tv_per): 
+    """scenario.values: Bear / Base / Bull each run through the DCF mechanics on its own Forecast Builder path
+    (Thesis & Scenarios engines). Value today, price target at the horizon (DCF method), weights, weighted totals.""" 
+    w, tg = v["in_WACC"], v["in_TermG"]	
+    H = float(ov.get("th_H", D.THESIS_H))	
+    out = {"H": H, "cases": {}} 
+    t = np.arange(1, 11) 
+    per = t - mid(s) 
+    for sc in D.SCEN: 
+        g, m = fc["scenarios"][sc] 
+        sch = schedule(v["in_Rev0"], np.append(g, tg), np.append(m, m[-1]), v, s)	
+        if s["in_TVMethod"] == D.TV_METHOD[0]: 
+            tv = float(sch["ufcf"][10] / (w - tg)) if w > tg else None 
+        else: 
+            tv = float(v["in_ExitMult"] * {"EV/EBITDA": sch["ebitda"][9], "EV/UFCF": sch["ufcf"][9],	
+                                           "EV/Revenue": sch["rev"][9]}[s["in_ExitMetric"]]) 
+        vot = value_over_time(sch["ufcf"][:10], per, tv, tv_per, v, s)	
+        wt = float(ov.get(f"th_W{sc}", D.SCEN_WEIGHTS[sc])) 
+        case = {"weight": wt, "cagr": float((sch["rev"][9] / v["in_Rev0"]) ** 0.1 - 1), "schedule": sch, "tv": tv,	
+                "path": None if tv is None else [float(x["price"]) for x in vot], "v0": None, "pt": None}	
+        if tv is not None:	
+            p = case["path"] 
+            i = int(H) 
+            case["v0"] = p[0] 
+            case["pt"] = p[i] + (H - i) * (p[min(i + 1, 10)] - p[i]) 
+        out["cases"][sc] = case 
+    cs = out["cases"].values() 
+    ok = all(c["v0"] is not None for c in cs) 
+    out["weight_sum"] = sum(c["weight"] for c in cs)	
+    out["v0"] = sum(c["weight"] * c["v0"] for c in cs) if ok else None 
+    out["pt"] = sum(c["weight"] * c["pt"] for c in cs) if ok else None	
+    return out	
+
+
 # ===================================================================================================================== 
 # 4. REVERSE DCF 
-# =====================================================================================================================	
+# ===================================================================================================================== 
 def rdcf_coefficients(v, fc, s):	
-    """rdcf.coef_a / rdcf.coef_b: cash-flow coefficients per $1 of revenue (Years 1-11).""" 
+    """rdcf.coef_a / rdcf.coef_b: cash-flow coefficients per $1 of revenue (Years 1-11)."""	
     m = np.array(fc["margin"] if s["rd_MarginSrc"] == D.MARGIN_SRC[0] else [v["in_EBITM0"]] * 10, float) 
     m11 = np.append(m, m[-1]) 
     flat = s["in_NWCMethod"] == D.NWC_METHOD[1] 
     a = m11 - lossf(m11, s) * v["in_TaxRate"] + v["in_DAPct"] - v["in_CapexPct"] + (v["in_NWCPct"] if flat else 0.0) 
-    b = 0.0 if flat else v["in_NWCPct"]	
-    return m11, a, b 
+    b = 0.0 if flat else v["in_NWCPct"] 
+    return m11, a, b	
 
 
 def rdcf_ev(g, v, s, a, b, m11, tv_per): 
     """rdcf.ev_of_g: closed-form model EV for a constant growth g (None when Excel would return an error).""" 
-    w, tg = v["in_WACC"], v["in_TermG"]	
-    t = np.arange(1, 11) 
-    P = t - mid(s)	
-    if s["in_TVMethod"] == D.TV_METHOD[0] and w == tg: 
-        return None                           # Excel: #DIV/0! -> NA in the scan	
+    w, tg = v["in_WACC"], v["in_TermG"] 
+    t = np.arange(1, 11)	
+    P = t - mid(s) 
+    if s["in_TVMethod"] == D.TV_METHOD[0] and w == tg:	
+        return None                           # Excel: #DIV/0! -> NA in the scan 
     try:	
         pv = v["in_Rev0"] * float(np.sum((1 + g) ** t * (a[:10] + b * g / (1 + g)) * (1 + w) ** (-P)))	
-        if s["in_TVMethod"] == D.TV_METHOD[0]: 
+        if s["in_TVMethod"] == D.TV_METHOD[0]:	
             tv = v["in_Rev0"] * (1 + g) ** 10 * (1 + tg) * (a[10] + b * tg / (1 + tg)) / (w - tg) 
         else: 
             met = {"EV/EBITDA": m11[9] + v["in_DAPct"], "EV/UFCF": a[9] + b * g / (1 + g), "EV/Revenue": 1.0}[s["in_ExitMetric"]] 
             tv = v["in_Rev0"] * (1 + g) ** 10 * v["in_ExitMult"] * met 
         return float(pv + tv * (1 + w) ** (-tv_per)) 
     except ZeroDivisionError: 
-        return None	
+        return None 
 
 
-def _sign(x): 
-    return int(x > 0) - int(x < 0)	
+def _sign(x):	
+    return int(x > 0) - int(x < 0) 
 
 
 def reverse_dcf(v, fc, d, s):	
-    """rdcf.target_ev, rdcf.grid, rdcf.bisection, rdcf.status, rdcf.proof, rdcf.gap""" 
+    """rdcf.target_ev, rdcf.grid, rdcf.bisection, rdcf.status, rdcf.proof, rdcf.gap"""	
     m11, a, b = rdcf_coefficients(v, fc, s) 
     target = v["in_Price"] * v["in_Shares"] - v["in_NetCash"] 
-    tv_per = d["tv_per"]	
+    tv_per = d["tv_per"] 
     f = lambda g: (lambda e: None if e is None else e - target)(rdcf_ev(g, v, s, a, b, m11, tv_per))	
-    grid = [round(D.RDCF_GRID_LO + D.RDCF_GRID_STEP * i, 2) for i in range(D.RDCF_GRID_N)] 
+    grid = [round(D.RDCF_GRID_LO + D.RDCF_GRID_STEP * i, 2) for i in range(D.RDCF_GRID_N)]	
     fg = [f(g) for g in grid] 
     flags = [1 if (i < len(grid) - 1 and fg[i] is not None and fg[i + 1] is not None and fg[i] * fg[i + 1] <= 0) else 0 
              for i in range(len(grid))] 
     first = flags.index(1) + 1 if 1 in flags else 0 
-    roots = sum(flags)	
-    steps, g_star = [], None 
+    roots = sum(flags) 
+    steps, g_star = [], None	
     if first: 
         lo, hi, flo = grid[first - 1], grid[first], fg[first - 1] 
-        for i in range(D.RDCF_BISECTIONS):	
-            mid_ = (lo + hi) / 2 
-            fm = f(mid_)	
-            steps.append((lo, hi, flo, mid_, fm)) 
-            if i == D.RDCF_BISECTIONS - 1:	
+        for i in range(D.RDCF_BISECTIONS): 
+            mid_ = (lo + hi) / 2	
+            fm = f(mid_) 
+            steps.append((lo, hi, flo, mid_, fm))	
+            if i == D.RDCF_BISECTIONS - 1: 
                 g_star = mid_	
                 break	
-            if _sign(fm) == _sign(flo): 
+            if _sign(fm) == _sign(flo):	
                 lo, flo = mid_, fm 
             else: 
                 hi = mid_ 
     if not v["in_WACC"] > v["in_TermG"]: 
         status = "FAIL: WACC must exceed terminal growth" 
     elif not first: 
-        mx = max([x for x in fg if x is not None], default=-1)	
-        status = ("WARN: no solution - even +150%/yr growth does not reach market EV (the margin / cash-conversion inputs " 
-                  "cannot justify the price)") if mx < 0 else "WARN: no solution - market EV is below model value even at -50%/yr growth"	
+        mx = max([x for x in fg if x is not None], default=-1) 
+        status = ("WARN: no solution - even +150%/yr growth does not reach market EV (the margin / cash-conversion inputs "	
+                  "cannot justify the price)") if mx < 0 else "WARN: no solution - market EV is below model value even at -50%/yr growth" 
     elif roots > 1:	
-        status = f"WARN: {roots} growth rates fit; the lowest is shown" 
+        status = f"WARN: {roots} growth rates fit; the lowest is shown"	
     else: 
         status = "OK: unique solution between -50% and +150%" 
-    out = {"target": target, "grid": grid, "f": fg, "flags": flags, "first": first, "roots": roots, "steps": steps,	
+    out = {"target": target, "grid": grid, "f": fg, "flags": flags, "first": first, "roots": roots, "steps": steps, 
            "g": g_star, "status": status, "coef_a": a, "coef_b": b, "margins": m11,	
-           "solution_text": "No solution in range" if g_star is None else None} 
+           "solution_text": "No solution in range" if g_star is None else None}	
     fc10 = (d["schedule"]["rev"][9] / v["in_Rev0"]) ** (1 / 10) - 1 
     out["forecast_cagr"] = fc10 
     cons = v.get("d_Cons1y") 
     if g_star is None: 
-        out.update(proof=None, ev=None, tieout=None, gap=None, gap_cons=None, residual=None, path=None)	
-        return out 
+        out.update(proof=None, ev=None, tieout=None, gap=None, gap_cons=None, residual=None, path=None) 
+        return out	
     g11 = np.append(np.full(10, g_star), v["in_TermG"]) 
     sch = schedule(v["in_Rev0"], g11, m11, v, s) 
-    pvs = sch["ufcf"][:10] * (1 + v["in_WACC"]) ** (-(np.arange(1, 11) - mid(s)))	
-    if s["in_TVMethod"] == D.TV_METHOD[0]: 
-        tv = sch["ufcf"][10] / (v["in_WACC"] - v["in_TermG"])	
-    else: 
-        tv = v["in_ExitMult"] * {"EV/EBITDA": sch["ebit"][9] + sch["da"][9], "EV/UFCF": sch["ufcf"][9],	
+    pvs = sch["ufcf"][:10] * (1 + v["in_WACC"]) ** (-(np.arange(1, 11) - mid(s))) 
+    if s["in_TVMethod"] == D.TV_METHOD[0]:	
+        tv = sch["ufcf"][10] / (v["in_WACC"] - v["in_TermG"]) 
+    else:	
+        tv = v["in_ExitMult"] * {"EV/EBITDA": sch["ebit"][9] + sch["da"][9], "EV/UFCF": sch["ufcf"][9], 
                                  "EV/Revenue": sch["rev"][9]}[s["in_ExitMetric"]]	
     pv_tv = tv * (1 + v["in_WACC"]) ** (-tv_per)	
-    ev = float(pvs.sum()) + pv_tv 
+    ev = float(pvs.sum()) + pv_tv	
     out.update(proof={"schedule": sch, "pv": pvs, "sum_pv": float(pvs.sum()), "tv": tv, "pv_tv": pv_tv}, 
                ev=ev, tieout=ev - target, residual=f(g_star), gap=g_star - fc10, 
                gap_cons=None if cons is None else g_star - cons, 
@@ -434,70 +468,70 @@ def reverse_dcf(v, fc, d, s):
 
 
 # ===================================================================================================================== 
-# 5. IRR	
-# ===================================================================================================================== 
-def excel_irr(cfs, guess=0.1):	
+# 5. IRR 
+# =====================================================================================================================	
+def excel_irr(cfs, guess=0.1): 
     """irr.irr: root of Σ cf_t/(1+r)^t = 0 (Excel IRR). Newton from 10% like Excel, bisection fallback."""	
-    def npv(r): 
+    def npv(r):	
         return sum(c / (1 + r) ** i for i, c in enumerate(cfs)) 
 
     def dnpv(r): 
-        return sum(-i * c / (1 + r) ** (i + 1) for i, c in enumerate(cfs))	
+        return sum(-i * c / (1 + r) ** (i + 1) for i, c in enumerate(cfs)) 
     r = guess	
-    for _ in range(100): 
+    for _ in range(100):	
         try: 
             f0, f1 = npv(r), dnpv(r) 
         except (ZeroDivisionError, OverflowError): 
             break 
-        if f1 == 0:	
-            break 
+        if f1 == 0: 
+            break	
         r_new = r - f0 / f1 
         if r_new <= -1: 
-            r_new = (r - 1) / 2	
-        if abs(r_new - r) < 1e-12: 
-            return r_new	
-        r = r_new 
-    lo, hi = -0.9999, 10.0	
+            r_new = (r - 1) / 2 
+        if abs(r_new - r) < 1e-12:	
+            return r_new 
+        r = r_new	
+    lo, hi = -0.9999, 10.0 
     flo, fhi = npv(lo), npv(hi)	
     if flo * fhi > 0:	
-        return None 
+        return None	
     for _ in range(200): 
         m = (lo + hi) / 2 
         fm = npv(m) 
         if flo * fm <= 0: 
             hi = m 
         else: 
-            lo, flo = m, fm	
-    return (lo + hi) / 2 
+            lo, flo = m, fm 
+    return (lo + hi) / 2	
 
 
-def _cagr(a, b, n):	
+def _cagr(a, b, n): 
     try:	
-        if a == 0 or n == 0: 
+        if a == 0 or n == 0:	
             return None 
         x = (b / a) 
-        if x < 0:	
+        if x < 0: 
             return None	
-        return x ** (1 / n) - 1 
+        return x ** (1 / n) - 1	
     except (TypeError, ZeroDivisionError): 
         return None 
 
 
 def irr_analysis(v, ov, d, dv, s): 
     """irr.metric_path, irr.entry_multiple, irr.exit_price, irr.cash_flows, irr.irr, irr.sensitivity""" 
-    H = int(v["irr_H"])	
-    sh, px0, nc, ncps = v["in_Shares"], v["in_Price"], v["in_NetCash"], v["in_NetCashPS"] 
+    H = int(v["irr_H"]) 
+    sh, px0, nc, ncps = v["in_Shares"], v["in_Price"], v["in_NetCash"], v["in_NetCashPS"]	
     sch, base = d["schedule"], d["base"] 
     dps = dv.get("d_dps") or 0.0 
-    # dividend growth default = forecast revenue CAGR over the holding period	
-    dg_def = _cagr(base["rev"], sch["rev"][H - 1], H) 
-    dg = ov.get("irr_DG", dg_def if dg_def is not None else 0.0)	
-    S = ov.get("irr_S", v["in_ShareChg"]) 
+    # dividend growth default = forecast revenue CAGR over the holding period 
+    dg_def = _cagr(base["rev"], sch["rev"][H - 1], H)	
+    dg = ov.get("irr_DG", dg_def if dg_def is not None else 0.0) 
+    S = ov.get("irr_S", v["in_ShareChg"])	
 
-    def line(key, kk):	
+    def line(key, kk): 
         if kk == 0:	
             return base[key]	
-        return sch[key][kk - 1] 
+        return sch[key][kk - 1]	
 
     repo = [] 
     for mult in D.IRR_MULTS: 
@@ -505,137 +539,138 @@ def irr_analysis(v, ov, d, dv, s):
         for fwd, basis in enumerate(D.IRR_BASIS): 
             path = [] 
             for t in range(11): 
-                kk = t + fwd	
-                try: 
-                    if key == "eps":	
+                kk = t + fwd 
+                try:	
+                    if key == "eps": 
                         n0, nk = base["nopat"], line("nopat", kk)	
-                        scale = nk / n0 if (n0 > 0 and nk > 0) else line("rev", kk) / base["rev"] 
+                        scale = nk / n0 if (n0 > 0 and nk > 0) else line("rev", kk) / base["rev"]	
                         val = dv["d_NI_Basis"] * scale 
                     elif key == "gp": 
-                        val = dv["d_GP"] * line("rev", kk) / base["rev"]	
+                        val = dv["d_GP"] * line("rev", kk) / base["rev"] 
                     elif key == "bv":	
-                        val = dv["d_Equity"] * line("rev", kk) / base["rev"] 
+                        val = dv["d_Equity"] * line("rev", kk) / base["rev"]	
                     elif key == "dps": 
                         val = dps * (1 + dg) ** kk * sh * (1 + S) ** t 
                     else: 
                         val = line(key, kk) 
-                except TypeError:	
-                    val = None 
+                except TypeError: 
+                    val = None	
                 path.append(None if val is None else float(val)) 
             ps = None if path[0] is None else path[0] / sh 
-            if ps is None:	
-                em = None 
-            elif kind == "P":	
-                em = px0 / ps if ps > 0 else None 
-            elif kind == "EV":	
+            if ps is None: 
+                em = None	
+            elif kind == "P": 
+                em = px0 / ps if ps > 0 else None	
+            elif kind == "EV": 
                 em = (px0 - ncps) / ps if ps > 0 else None	
             else:	
-                em = ps / px0 
+                em = ps / px0	
             gr = _cagr(path[0], path[H], H) if None not in (path[0], path[H]) else None 
             repo.append({"key": f"{mult} - {basis}", "mult": mult, "basis": basis, "kind": kind, "path": path, 
                          "multiple": em, "metric_ps": ps, "growth": gr}) 
     sel = next(r for r in repo if r["key"] == f"{s['irr_Mult']} - {s['irr_Basis']}") 
     kind = sel["kind"] 
     entry = sel["multiple"] 
-    exit_ = ov.get("irr_Exit", entry)	
-    gman_def = excel_round(sel["growth"], 3) if sel["growth"] is not None else None   # ROUND(path CAGR, 3) 
-    gman = ov.get("irr_GMan", gman_def)	
+    exit_ = ov.get("irr_Exit", entry) 
+    gman_def = excel_round(sel["growth"], 3) if sel["growth"] is not None else None   # ROUND(path CAGR, 3)	
+    gman = ov.get("irr_GMan", gman_def) 
     manual = s["irr_GSrc"] == D.GROWTH_SRC[1]	
-    rows = [] 
+    rows = []	
     cum = 0.0 
     for t in range(11): 
-        if t == 0 or not manual:	
+        if t == 0 or not manual: 
             I = sel["path"][t]	
-        else: 
+        else:	
             I = None if (sel["path"][0] is None or gman is None) else sel["path"][0] * (1 + gman) ** t 
         E = sh * (1 + S) ** t 
         B = None if I is None else I / E 
         C = 0.0 if t == 0 else dps * (1 + dg) ** t 
-        cum += C	
-        rows.append({"t": t, "metric_total": I, "shares": E, "metric_ps": B, "dps": C, "cum_div": cum}) 
+        cum += C 
+        rows.append({"t": t, "metric_total": I, "shares": E, "metric_ps": B, "dps": C, "cum_div": cum})	
     for r_ in rows: 
         t = r_["t"] 
-        acc = 0.0	
-        if s["irr_Cash"] == D.CASH_EXIT[1]: 
-            acc = (0.0 if t == 0 else float(np.sum(sch["ufcf"][:max(t, 1)]))) - sum(x["dps"] * x["shares"] for x in rows if x["t"] <= t)	
-        r_["nc_ps"] = (nc + acc) / r_["shares"] 
-        B = r_["metric_ps"]	
+        acc = 0.0 
+        if s["irr_Cash"] == D.CASH_EXIT[1]:	
+            acc = (0.0 if t == 0 else float(np.sum(sch["ufcf"][:max(t, 1)]))) - sum(x["dps"] * x["shares"] for x in rows if x["t"] <= t) 
+        r_["nc_ps"] = (nc + acc) / r_["shares"]	
+        B = r_["metric_ps"] 
         try:	
             if kind == "Yield":	
-                G = B / exit_ if exit_ > 0 else None 
+                G = B / exit_ if exit_ > 0 else None	
             else: 
                 G = exit_ * B + (r_["nc_ps"] if kind == "EV" else 0.0) 
         except TypeError: 
             G = None 
         r_["exit_price"] = G 
     cfs = [] 
-    for r_ in rows:	
-        t = r_["t"] 
-        if t == 0:	
+    for r_ in rows: 
+        t = r_["t"]	
+        if t == 0: 
             cf = -px0	
-        elif t < H: 
+        elif t < H:	
             cf = r_["dps"] 
         elif t == H: 
-            cf = None if r_["exit_price"] is None else r_["dps"] + r_["exit_price"]	
+            cf = None if r_["exit_price"] is None else r_["dps"] + r_["exit_price"] 
         else:	
-            cf = 0.0 
+            cf = 0.0	
         r_["cash_flow"] = cf 
         cfs.append(cf) 
     exit_px = rows[H]["exit_price"] 
     if exit_px is None: 
-        irr, irr_note = None, "n/m"	
-    elif exit_px <= 0: 
+        irr, irr_note = None, "n/m" 
+    elif exit_px <= 0:	
         irr, irr_note = None, "n/m" 
     else: 
-        irr = excel_irr(cfs)	
-        irr_note = None if irr is not None else "n/a" 
-    cumH = rows[H]["cum_div"]	
-    out = {"H": H, "repo": repo, "selected": sel, "kind": kind, "entry": entry, "exit": exit_, "rows": rows, 
-           "cash_flows": cfs, "exit_price": exit_px, "irr": irr, "irr_note": irr_note, "dg": dg, "share_chg": S,	
+        irr = excel_irr(cfs) 
+        irr_note = None if irr is not None else "n/a"	
+    cumH = rows[H]["cum_div"] 
+    out = {"H": H, "repo": repo, "selected": sel, "kind": kind, "entry": entry, "exit": exit_, "rows": rows,	
+           "cash_flows": cfs, "exit_price": exit_px, "irr": irr, "irr_note": irr_note, "dg": dg, "share_chg": S, 
            "gman": gman, "entry_ps": rows[0]["metric_ps"], "dps0": dps}	
     out["total_multiple"] = None if exit_px is None else (exit_px + cumH) / px0	
-    out["price_cagr"] = _cagr(px0, exit_px, H) if exit_px is not None else None 
+    out["price_cagr"] = _cagr(px0, exit_px, H) if exit_px is not None else None	
     out["simple_return"] = _cagr(px0, exit_px + cumH, H) if exit_px is not None else None 
     out["metric_cagr"] = _cagr(rows[0]["metric_total"], rows[H]["metric_total"], H) if None not in (rows[0]["metric_total"], rows[H]["metric_total"]) else None 
     # sensitivity: entry multiple (rows) x exit multiple (columns) 
     grid = [] 
     BH, FH = rows[H]["metric_ps"], rows[H]["nc_ps"] 
     eps0 = rows[0]["metric_ps"] 
-    for mi in D.IRR_SENS_MULTS:	
-        line_ = [] 
-        for mj in D.IRR_SENS_MULTS:	
+    for mi in D.IRR_SENS_MULTS: 
+        line_ = []	
+        for mj in D.IRR_SENS_MULTS: 
             try:	
-                A, c = entry * mi, exit_ * mj 
+                A, c = entry * mi, exit_ * mj	
                 pe = eps0 / A if kind == "Yield" else A * eps0 + (ncps if kind == "EV" else 0.0) 
                 pxx = BH / c if kind == "Yield" else c * BH + (FH if kind == "EV" else 0.0) 
-                line_.append(((pxx + cumH) / pe) ** (1 / H) - 1 if (pe > 0 and pxx > 0) else None)	
+                line_.append(((pxx + cumH) / pe) ** (1 / H) - 1 if (pe > 0 and pxx > 0) else None) 
             except (TypeError, ZeroDivisionError):	
-                line_.append(None) 
+                line_.append(None)	
         grid.append(line_) 
     out["sens"] = {"rows": [None if entry is None else entry * m for m in D.IRR_SENS_MULTS], 
                    "cols": [None if exit_ is None else exit_ * m for m in D.IRR_SENS_MULTS], "grid": grid, 
                    "centre": grid[3][3]} 
-    return out	
+    return out 
 
 
-# ===================================================================================================================== 
+# =====================================================================================================================	
 # 6. ORCHESTRATION 
 # ===================================================================================================================== 
-@dataclass	
-class Result: 
-    company: CompanyData	
-    settings: dict 
-    inputs: dict	
+@dataclass 
+class Result:	
+    company: CompanyData 
+    settings: dict	
+    inputs: dict 
     sources: dict	
     derived: dict	
-    derived_sources: dict 
+    derived_sources: dict	
     missing: list 
     forecast: dict | None = None 
     dcf: dict | None = None 
     sens: dict | None = None 
     vot: list | None = None 
     rdcf: dict | None = None 
-    irr: dict | None = None	
+    irr: dict | None = None 
+    scen: dict | None = None	
     extra: dict = field(default_factory=dict) 
 
 
@@ -660,7 +695,7 @@ def run(company: CompanyData, overrides: dict | None = None, settings: dict | No
     v["d_revenue_prior"] = company.flows["revenue_prior"]	
     v["d_Cons1y"] = company.market.get("growth_1y") 
     missing = [k for k in REQUIRED if v.get(k) is None]	
-    res = Result(company, s, v, r.src, dv, {k: x[1] for k, x in der.items()}, missing) 
+    res = Result(company, s, v, r.src, dv, {k: x[1] for k, x in der.items()}, missing, extra={"ov": ov}) 
     if missing:	
         return res	
     res.forecast = forecast(v, ov, s)	
@@ -668,6 +703,7 @@ def run(company: CompanyData, overrides: dict | None = None, settings: dict | No
     res.sens = dcf_sensitivity(v, res.dcf, s) 
     res.vot = value_over_time(res.dcf["schedule"]["ufcf"][:10], res.dcf["per"], res.dcf["tv"], res.dcf["tv_per"], v, s) 
     res.rdcf = reverse_dcf(v, res.forecast, res.dcf, s) 
+    res.scen = scenarios(v, ov, res.forecast, s, res.dcf["tv_per"]) 
     irr_ov = {k: float(ov[k]) for k in ("irr_Exit", "irr_DG", "irr_GMan", "irr_S") if ov.get(k) is not None} 
     res.irr = irr_analysis(v, irr_ov, res.dcf, dv, s) 
-    return res 
+    return res	

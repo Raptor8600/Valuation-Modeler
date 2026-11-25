@@ -33,6 +33,8 @@
  "rdcf.proof": "'Reverse DCF'!B51 (name `rd_TieOut`)",
  "rdcf.solve": "'Reverse DCF'!B14 (name `rd_G`)",
  "rdcf.target": "'Reverse DCF'!F20 (name `rd_Target`)",
+ "scenario.targets": "'Thesis & Scenarios'!B12 (name `th_PT`)",
+ "scenario.values": "'Thesis & Scenarios'!J30 (name `th_V0Bear`)",
  "units.convert": "'Start Here & Guide'!B19 (name `in_Cash`)",
  "wacc.active": "'DCF Model'!B31 (name `in_WACC`)",
  "wacc.capm": "'DCF Model'!F14 (name `in_WACC_CAPM`)",

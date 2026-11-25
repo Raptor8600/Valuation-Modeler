@@ -6,7 +6,7 @@ import re
 import streamlit as st 
 
 from valuation import app_model, engine, checks 
-from valuation.app_model import FIELDS, IRR_FIELDS, from_display 
+from valuation.app_model import FIELDS, IRR_FIELDS, SCEN_FIELDS, from_display 
 from valuation.builder_bridge import parse_snapshot	
 from valuation.company import CompanyData 
 from valuation.data_sources import load_snapshot, fetch_live_snapshot, ROOT 
@@ -144,7 +144,7 @@ def collect(company, basis):
         v = from_display(kind, ss.get(f"ov_{name}"), unit) 
         if v is not None:	
             ov[name] = v 
-    for name, _, kind in IRR_FIELDS:	
+    for name, _, kind in IRR_FIELDS + SCEN_FIELDS:	
         v = from_display(kind, ss.get(f"ov_{name}"), unit)	
         if v is not None: 
             ov[name] = v 
@@ -181,20 +181,38 @@ def header(company, basis):
     c3.markdown(f"**Data as of:** {company.fetched_at}")	
     if res.dcf and res.dcf["fv"] is not None: 
         c4.markdown(f"**Fair value:** ${res.dcf['fv']:,.2f} vs price ${res.inputs['in_Price']:,.2f}")	
-    meta = company.snapshot_meta	
+    scenario_bar(res)	
+    meta = company.snapshot_meta 
     if meta.get("synthetic"): 
         st.error("SYNTHETIC TEST DATA - invented numbers, not a real company.") 
-    elif meta.get("kind") == "transcribed": 
+    elif meta.get("kind") == "transcribed":	
         st.warning("Reference snapshot: " + meta.get("provenance", ""))	
-    n_ov = len(ov) + count_changed_switches(company, switches)	
+    n_ov = len(ov) + count_changed_switches(company, switches) 
     summary = checks.summary(checks.run_checks(res)) 
     st.caption(f"{DISCLAIMER}  ·  Overrides active: {n_ov}  ·  Checks: {summary}") 
     if res.missing: 
         st.error("Missing inputs (blank, never guessed): " + ", ".join(res.missing) + 
-                 ". Type them on the Inputs tab from the linked filing.") 
-    return res	
+                 ". Type them on the Inputs tab from the linked filing.")	
+    return res 
+
+
+def scenario_bar(res): 
+    """Bear / Base / Bull / weighted value today next to the current price - always at the top.""" 
+    if res.dcf is None or res.scen is None:	
+        return 
+    sc, px = res.scen, res.inputs["in_Price"]	
+    cols = st.columns(5) 
+    cols[0].metric("Current share price", f"${px:,.2f}")	
+    for col, name in zip(cols[1:4], ("Bear", "Base", "Bull")):	
+        c = sc["cases"][name]	
+        col.metric(f"{name} case - value today ({c['weight']:.0%})", "n/a" if c["v0"] is None else f"${c['v0']:,.2f}", 
+                   None if c["v0"] is None else f"{c['v0'] / px - 1:+.1%} vs price") 
+    cols[4].metric("Probability-weighted", "n/a" if sc["v0"] is None else f"${sc['v0']:,.2f}", 
+                   None if sc["v0"] is None else f"{sc['v0'] / px - 1:+.1%} vs price") 
+    st.caption("Each case runs the full DCF on its own path (Bear and Bull shift the automatic fade by ±5pp growth and ±3pp " 
+               "margin unless you edit them). Weights, horizon and price targets: DCF tab → Scenarios.") 
 
 
 def basis_badge(res): 
-    st.caption(f"Accounting basis: **{res.settings['in_Basis']}** · WACC mode: {res.settings['in_WACCMode']} · " 
+    st.caption(f"Accounting basis: **{res.settings['in_Basis']}** · WACC mode: {res.settings['in_WACCMode']} · "	
                f"Terminal method: {res.settings['in_TVMethod']} · Discounting: {res.settings['in_Timing']}") 

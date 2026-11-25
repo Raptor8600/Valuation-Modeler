@@ -1,10 +1,19 @@
 # Changelog
 
+## 0.3.0 - 2026-11-24
+
+* Bear / Base / Bull: each case's value today next to the current share price at the top of every company, plus
+  scenario tables on the DCF (weights, horizon, price targets), Reverse DCF (10-yr growth vs market-implied) and IRR
+  (return to each target) tabs, the values-only Excel export, the Logic page and two new checks. Matches the workbook's
+  Thesis & Scenarios engines (parity-tested).
+
 ## 0.2.0 - 2026-11-23
 
 * App reorganised: Start here (guide) → Live search → My searches → Examples, with "what you should see" notes
   on each example. Live search asks each visitor for their SEC contact (sent only to the SEC, not stored).
 * Override counter no longer counts untouched Data & Sources switches.
+* Download tab: values-only Excel export of each run (no formulas) plus the search data; the JSON audit pack is no
+  longer offered (its content is in the Excel Inputs sheet).
 
 * Documentation and verification portal: `site/index.html` (self-contained, published to GitHub Pages by CI).
 * The Excel builder is no longer included: it stays private with the owner. The SEC parser it shares with the app is

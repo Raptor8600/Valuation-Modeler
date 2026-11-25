@@ -1,6 +1,6 @@
+streamlit
+yfinance
 numpy
 pandas
 openpyxl
 PyYAML
-pytest
-Markdown
